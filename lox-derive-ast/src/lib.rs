@@ -1,7 +1,7 @@
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro::{TokenStream};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{parse_macro_input, Ident, Type, Token};
-use quote::quote;
+use quote::{quote, format_ident};
 
 struct AstType {
     name: Ident,
@@ -45,14 +45,53 @@ impl Parse for AstTypes {
 pub fn make_ast(input: TokenStream) -> TokenStream {
     let AstTypes { types } = parse_macro_input!(input as AstTypes);
     
-    let expanded = types.iter().map(|at| {
-        XD
-        TokenStream::from(quote! {
-            struct #at.name {
-
+    let structs: proc_macro2::TokenStream = types.iter().map(|ty| {
+        let fields: proc_macro2::TokenStream = ty.fields.iter().map(|(ident, ty)| {
+            quote! {
+                #ident: #ty,
             }
-        })
-    });
+        }).collect();
+        let field_names: proc_macro2::TokenStream = ty.fields.iter().map(|(ident, _)| {
+            quote! {
+                #ident,
+            }
+        }).collect();
+        let ty_name = &ty.name;
+        let fn_name = format_ident!("visit_{}", ty.name);
+        quote! {
+            pub struct #ty_name {
+                #fields
+            }
+            impl #ty_name {
+                fn new(#fields) -> Self {
+                    Self{ #field_names }
+                }
+            }
+            impl Expr for #ty_name {
+                fn accept<R>(&mut self, visitor: &mut Visitor<R>) -> R {
+                    visitor.#fn_name(self)
+                }
+            }
+        }
+    }).collect();
 
-    expanded.collect()
+    let visitor_fns: proc_macro2::TokenStream = types.iter().map(|ty| {
+        let ty_name = &ty.name;
+        let fn_name = format_ident!("visit_{}", ty.name);
+        quote! {
+            fn #fn_name(expr: &mut #ty_name) -> R;
+        }
+    }).collect();
+
+    let expanded = quote! {
+        trait Visitor<R> {
+            #visitor_fns
+        }
+        trait Expr {
+            fn accept(&mut self, visitor: &mut Visitor<R>) -> R;
+        }
+        #structs
+    };
+
+    expanded.into()
 }

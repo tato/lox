@@ -1,3 +1,6 @@
+use ast::{AstPrinter, Expr};
+use token::{Token, TokenKind};
+
 mod ast;
 mod error;
 mod scanner;
@@ -39,6 +42,18 @@ fn run_prompt() -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
+
+    let mut expression = Expr::Binary{
+        left: Expr::Unary {
+            operator: Token::new(TokenKind::Minus, vec!['-'], None, 1),
+            right: Expr::Literal{ value: Some(Box::new(123)) }.into()
+        }.into(),
+        operator: Token::new(TokenKind::Star, vec!['*'], None, 1),
+        right: Expr::Grouping{ expression: Expr::Literal{ value: Some(Box::new(39.32)) }.into()}.into(),
+    };
+    let mut printer = AstPrinter{ };
+    println!("{}", printer.print(&mut expression));
+
     let args = std::env::args().collect::<Vec<_>>();
     if args.len() > 2 {
         println!("Usage: lox [script]");

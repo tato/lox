@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use std::any::Any;
 use std::collections::hash_map::HashMap;
 
-use crate::error::ErrorInfo;
+use crate::{error::ErrorInfo, token::LiteralValue};
 use crate::token::{Token, TokenKind};
 
 lazy_static! {
@@ -164,7 +164,7 @@ impl Scanner {
         self.add_literal_token(kind, None);
     }
 
-    fn add_literal_token(&mut self, kind: TokenKind, literal: Option<Box<dyn Any>>) {
+    fn add_literal_token(&mut self, kind: TokenKind, literal: Option<Box<dyn LiteralValue>>) {
         let text: Vec<char> = self.source[self.start..self.current]
             .iter()
             .cloned()
