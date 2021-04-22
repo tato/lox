@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
 use std::collections::hash_map::HashMap;
 
-use crate::{error::ErrorInfo, token::LiteralValue};
 use crate::token::{Token, TokenKind};
+use crate::{error::ErrorInfo, token::LiteralValue};
 
 lazy_static! {
     static ref RESERVED_WORDS: HashMap<String, TokenKind> = {
@@ -52,8 +52,12 @@ impl Scanner {
             self.start = self.current;
             self.scan_token()?;
         }
-        self.tokens
-            .push(Token::new(TokenKind::Eof, Vec::new(), None, self.line));
+        self.tokens.push(Token::new(
+            TokenKind::Eof,
+            Vec::new(),
+            LiteralValue::Nil,
+            self.line,
+        ));
         return Ok(self.tokens);
     }
 
@@ -160,10 +164,10 @@ impl Scanner {
     }
 
     fn add_token(&mut self, kind: TokenKind) {
-        self.add_literal_token(kind, None);
+        self.add_literal_token(kind, LiteralValue::Nil);
     }
 
-    fn add_literal_token(&mut self, kind: TokenKind, literal: Option<Box<dyn LiteralValue>>) {
+    fn add_literal_token(&mut self, kind: TokenKind, literal: LiteralValue) {
         let text: Vec<char> = self.source[self.start..self.current]
             .iter()
             .cloned()
@@ -186,7 +190,7 @@ impl Scanner {
             .iter()
             .cloned()
             .collect();
-        self.add_literal_token(TokenKind::String, Some(Box::new(value)));
+        self.add_literal_token(TokenKind::String, LiteralValue::Str(value));
         Ok(())
     }
 
@@ -206,7 +210,7 @@ impl Scanner {
             .collect::<String>()
             .parse()
             .unwrap_or_default();
-        self.add_literal_token(TokenKind::Number, Some(Box::new(value)));
+        self.add_literal_token(TokenKind::Number, LiteralValue::Float(value));
         Ok(())
     }
 

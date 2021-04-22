@@ -1,18 +1,21 @@
-use ast::{AstPrinter, Expr};
-use token::{Token, TokenKind};
+use ast::AstPrinter;
+use parser::Parser;
 
 mod ast;
 mod error;
+mod parser;
 mod scanner;
 mod token;
 
 fn run(source: String) -> anyhow::Result<()> {
     let scanner = scanner::Scanner::new(source);
     let tokens = scanner.scan_tokens()?;
+    
+    let mut parser = Parser::new(tokens);
+    let mut expression = parser.parse()?;
 
-    for token in &tokens {
-        println!("{:?}", token);
-    }
+    let mut printer = AstPrinter{ };
+    println!("{}", printer.print(&mut expression));
 
     Ok(())
 }
@@ -42,7 +45,6 @@ fn run_prompt() -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
-
     let args = std::env::args().collect::<Vec<_>>();
     if args.len() > 2 {
         println!("Usage: lox [script]");

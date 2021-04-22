@@ -1,5 +1,3 @@
-
-
 // use lox_derive_ast::make_ast;
 
 use crate::token::{LiteralValue, Token};
@@ -18,40 +16,33 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: Option<Box<dyn LiteralValue>>,
+        value: LiteralValue,
     },
     Unary {
         operator: Token,
         right: Box<Expr>,
-    }
+    },
 }
 
 impl Expr {
-    fn accept<R>(&mut self, visitor: &mut dyn Visitor<Return=R>) -> R {
+    fn accept<R>(&mut self, visitor: &mut dyn Visitor<Return = R>) -> R {
         visitor.visit(self)
     }
 }
 
-pub struct AstPrinter { }
+pub struct AstPrinter {}
 impl Visitor for AstPrinter {
     type Return = String;
     fn visit(&mut self, expr: &mut Expr) -> Self::Return {
         match expr {
-            Expr::Binary{left, operator, right} => {
-                self.parenthesize(&operator.lexeme(), &mut [left, right])
-            },
-            Expr::Grouping{expression} => {
-                self.parenthesize("group", &mut [expression])
-            },
-            Expr::Literal{value} => {
-                match value {
-                    None => "nil".to_string(),
-                    Some(val) => val.to_string()
-                }
-            },
-            Expr::Unary{operator, right} => {
-                self.parenthesize(&operator.lexeme(), &mut [right])
-            },
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => self.parenthesize(&operator.lexeme(), &mut [left, right]),
+            Expr::Grouping { expression } => self.parenthesize("group", &mut [expression]),
+            Expr::Literal { value } => value.to_string(),
+            Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme(), &mut [right]),
         }
     }
 }
@@ -72,5 +63,3 @@ impl AstPrinter {
         result
     }
 }
-
-

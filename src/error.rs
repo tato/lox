@@ -5,13 +5,13 @@ pub struct ErrorInfo {
     message: String,
 }
 impl ErrorInfo {
-    pub fn new(line: usize, location: &str, message: &str) -> Self {
-        Self {
-            line,
-            location: location.into(),
-            message: message.into(),
-        }
-    }
+    // pub fn new(line: usize, location: &str, message: &str) -> Self {
+    //     Self {
+    //         line,
+    //         location: location.into(),
+    //         message: message.into(),
+    //     }
+    // }
     pub fn line(line: usize, message: &str) -> Self {
         Self {
             line,
@@ -30,3 +30,14 @@ impl std::fmt::Display for ErrorInfo {
     }
 }
 impl std::error::Error for ErrorInfo {}
+
+// pub struct ErrorReporter {
+// }
+// impl ErrorReporter {
+//     pub fn new() -> Self {
+//         ErrorReporter{ }
+//     }
+//     pub fn report(line: i32, location: &str, message: &str) {
+//         println!("[line {}] Error{}: {}", line, location, message);
+//     }
+// }

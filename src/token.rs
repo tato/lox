@@ -1,6 +1,6 @@
+use std::fmt::Display;
 
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     LeftParen,
     RightParen,
@@ -50,26 +50,35 @@ pub enum TokenKind {
     Eof,
 }
 
-pub trait LiteralValue: std::fmt::Display + std::fmt::Debug {
+#[derive(Debug, Clone)]
+pub enum LiteralValue {
+    Bool(bool),
+    // Int(i64),
+    Float(f64),
+    Str(String),
+    Nil,
 }
-impl LiteralValue for i64 { }
-impl LiteralValue for f64 { }
-impl LiteralValue for String { }
+impl Display for LiteralValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LiteralValue::Bool(x) => write!(f, "{}", x),
+            // LiteralValue::Int(x) => write!(f, "{}", x),
+            LiteralValue::Float(x) => write!(f, "{}", x),
+            LiteralValue::Str(x) => write!(f, "{}", x),
+            LiteralValue::Nil => write!(f, "nil"),
+        }
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    kind: TokenKind,
+    pub kind: TokenKind,
     lexeme: Vec<char>,
-    literal: Option<Box<dyn LiteralValue>>,
-    line: usize,
+    pub literal: LiteralValue,
+    pub line: usize,
 }
 impl Token {
-    pub fn new(
-        kind: TokenKind,
-        lexeme: Vec<char>,
-        literal: Option<Box<dyn LiteralValue>>,
-        line: usize,
-    ) -> Self {
+    pub fn new(kind: TokenKind, lexeme: Vec<char>, literal: LiteralValue, line: usize) -> Self {
         Self {
             kind,
             lexeme,
