@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use std::any::Any;
 use std::collections::hash_map::HashMap;
 
 use crate::{error::ErrorInfo, token::LiteralValue};

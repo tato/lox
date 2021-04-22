@@ -1,21 +1,13 @@
-use std::any::Any;
+
 
 // use lox_derive_ast::make_ast;
 
 use crate::token::{LiteralValue, Token};
 
-// make_ast! {
-//     Binary => left: Box<Expr>, operator: Token, right: Box<Expr> ;
-//     Grouping => expression: Box<Expr> ;
-//     Literal => value: Box<dyn Any> ;
-//     Unary => operator: Token, right: Box<Expr> ;
-// }
-
 trait Visitor {
     type Return;
     fn visit(&mut self, expr: &mut Expr) -> Self::Return;
 }
-
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -63,6 +55,7 @@ impl Visitor for AstPrinter {
         }
     }
 }
+
 impl AstPrinter {
     pub fn print(&mut self, expr: &mut Expr) -> String {
         self.visit(expr)
