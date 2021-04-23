@@ -1,21 +1,24 @@
 use ast::AstPrinter;
+use interpreter::Interpreter;
 use parser::Parser;
 
 mod ast;
 mod error;
+mod interpreter;
 mod parser;
 mod scanner;
 mod token;
+mod value;
 
 fn run(source: String) -> anyhow::Result<()> {
     let scanner = scanner::Scanner::new(source);
     let tokens = scanner.scan_tokens()?;
-    
+
     let mut parser = Parser::new(tokens);
     let mut expression = parser.parse()?;
 
-    let mut printer = AstPrinter{ };
-    println!("{}", printer.print(&mut expression));
+    let mut interpreter = Interpreter {};
+    interpreter.interpret(&mut expression);
 
     Ok(())
 }

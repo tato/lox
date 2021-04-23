@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use crate::value::LoxValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
@@ -51,34 +51,14 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, Clone)]
-pub enum LiteralValue {
-    Bool(bool),
-    // Int(i64),
-    Float(f64),
-    Str(String),
-    Nil,
-}
-impl Display for LiteralValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LiteralValue::Bool(x) => write!(f, "{}", x),
-            // LiteralValue::Int(x) => write!(f, "{}", x),
-            LiteralValue::Float(x) => write!(f, "{}", x),
-            LiteralValue::Str(x) => write!(f, "{}", x),
-            LiteralValue::Nil => write!(f, "nil"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     lexeme: Vec<char>,
-    pub literal: LiteralValue,
+    pub literal: LoxValue,
     pub line: usize,
 }
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: Vec<char>, literal: LiteralValue, line: usize) -> Self {
+    pub fn new(kind: TokenKind, lexeme: Vec<char>, literal: LoxValue, line: usize) -> Self {
         Self {
             kind,
             lexeme,

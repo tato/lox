@@ -1,11 +1,12 @@
 // use lox_derive_ast::make_ast;
+use crate::token::Token;
+use crate::value::LoxValue;
 
-use crate::token::{LiteralValue, Token};
-
-trait Visitor {
+pub trait Visitor {
     type Return;
     fn visit(&mut self, expr: &mut Expr) -> Self::Return;
 }
+#[derive(Debug)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -16,7 +17,7 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: LiteralValue,
+        value: LoxValue,
     },
     Unary {
         operator: Token,
@@ -25,7 +26,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    fn accept<R>(&mut self, visitor: &mut dyn Visitor<Return = R>) -> R {
+    pub fn accept<R>(&mut self, visitor: &mut dyn Visitor<Return = R>) -> R {
         visitor.visit(self)
     }
 }

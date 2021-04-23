@@ -2,7 +2,8 @@ use std::{error::Error, fmt::Display};
 
 use crate::{
     ast::Expr,
-    token::{LiteralValue, Token, TokenKind},
+    token::{Token, TokenKind},
+    value::LoxValue,
 };
 
 pub struct Parser {
@@ -153,15 +154,15 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParserError> {
         if self.exact(&[TokenKind::False]) {
             Ok(Expr::Literal {
-                value: LiteralValue::Bool(false),
+                value: LoxValue::Bool(false),
             })
         } else if self.exact(&[TokenKind::True]) {
             Ok(Expr::Literal {
-                value: LiteralValue::Bool(true),
+                value: LoxValue::Bool(true),
             })
         } else if self.exact(&[TokenKind::Nil]) {
             Ok(Expr::Literal {
-                value: LiteralValue::Nil,
+                value: LoxValue::Nil,
             })
         } else if self.exact(&[TokenKind::Number, TokenKind::String]) {
             Ok(Expr::Literal {
@@ -206,7 +207,10 @@ fn report(line: usize, wher: &str, message: &str) {
 }
 fn parser_error(token: Token, message: &str) -> ParserError {
     report(token.line, &format!("at '{}'", token.lexeme()), message);
-    ParserError{ token, message: message.to_string() }
+    ParserError {
+        token,
+        message: message.to_string(),
+    }
 }
 
 #[derive(Debug)]

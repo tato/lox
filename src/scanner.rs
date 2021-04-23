@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use std::collections::hash_map::HashMap;
 
 use crate::token::{Token, TokenKind};
-use crate::{error::ErrorInfo, token::LiteralValue};
+use crate::{error::ErrorInfo, value::LoxValue};
 
 lazy_static! {
     static ref RESERVED_WORDS: HashMap<String, TokenKind> = {
@@ -55,7 +55,7 @@ impl Scanner {
         self.tokens.push(Token::new(
             TokenKind::Eof,
             Vec::new(),
-            LiteralValue::Nil,
+            LoxValue::Nil,
             self.line,
         ));
         return Ok(self.tokens);
@@ -164,10 +164,10 @@ impl Scanner {
     }
 
     fn add_token(&mut self, kind: TokenKind) {
-        self.add_literal_token(kind, LiteralValue::Nil);
+        self.add_literal_token(kind, LoxValue::Nil);
     }
 
-    fn add_literal_token(&mut self, kind: TokenKind, literal: LiteralValue) {
+    fn add_literal_token(&mut self, kind: TokenKind, literal: LoxValue) {
         let text: Vec<char> = self.source[self.start..self.current]
             .iter()
             .cloned()
@@ -190,7 +190,7 @@ impl Scanner {
             .iter()
             .cloned()
             .collect();
-        self.add_literal_token(TokenKind::String, LiteralValue::Str(value));
+        self.add_literal_token(TokenKind::String, LoxValue::Str(value));
         Ok(())
     }
 
@@ -210,7 +210,7 @@ impl Scanner {
             .collect::<String>()
             .parse()
             .unwrap_or_default();
-        self.add_literal_token(TokenKind::Number, LiteralValue::Float(value));
+        self.add_literal_token(TokenKind::Number, LoxValue::Float(value));
         Ok(())
     }
 
