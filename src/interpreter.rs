@@ -1,23 +1,38 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{ast::{Expr}, token::TokenKind, value::LoxValue};
+use crate::{ast::{Expr, Stmt}, environment::Environment, token::{Token, TokenKind}, value::LoxValue};
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    environment: Environment,
+}
 impl Interpreter {
-    pub fn interpret(&mut self, expression: &mut Expr) {
-        let result = self.solve_expr(expression);
-        match result {
-            Ok(val) => println!("{}", val.to_string()),
-            Err(e) => eprintln!("{}", e),
+    pub fn new() -> Self {
+        Self { environment: Environment::new() }
+    }
+
+    pub fn interpret(&mut self, statements: &Vec<Stmt>) {
+        for statement in statements {
+            match self.execute(statement) {
+                Ok(_) => { },
+                Err(e) => {
+                    eprintln!("{}", e);
+                    break;
+                },
+            }
         }
     }
 
-    fn solve_expr(&mut self, expr: &mut Expr) -> Result<LoxValue, InterpreterError> {
+    fn evaluate(&self, expr: &Expr) -> Result<LoxValue, InterpreterError> {
         match expr {
             Expr::Literal{ value } => Ok(value.clone()),
-            Expr::Grouping{ expression } => self.solve_expr(expression),
+            Expr::Variable{ name } => {
+                self.environment.get(&name).ok_or_else(|| {
+                    InterpreterError::UndefinedVariable(name.clone())
+                })
+            },
+            Expr::Grouping{ expression } => self.evaluate(expression),
             Expr::Unary{ operator, right } => {
-                let right = self.solve_expr(right)?;
+                let right = self.evaluate(right)?;
                 match operator.kind {
                     TokenKind::Minus => match right {
                         LoxValue::Float(f) => Ok(LoxValue::Float(-f)),
@@ -28,8 +43,8 @@ impl Interpreter {
                 }
             },
             Expr::Binary{ left, operator, right } => {
-                let left = self.solve_expr(left)?;
-                let right = self.solve_expr(right)?;
+                let left = self.evaluate(left)?;
+                let right = self.evaluate(right)?;
 
                 match operator.kind {
                     TokenKind::Minus => {
@@ -101,6 +116,27 @@ impl Interpreter {
             },
         }
     }
+
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), InterpreterError> {
+        match stmt {
+            Stmt::Expression{ expression } => {
+                self.evaluate(expression)?;
+            },
+            Stmt::Print{ expression } => {
+                let value = self.evaluate(expression)?;
+                println!("{}", value.to_string());
+            },
+            Stmt::Var{ name, initializer } => {
+                let value = if let Some(expr) = initializer {
+                    self.evaluate(expr)?
+                } else {
+                    LoxValue::Nil   
+                };
+                self.environment.define(name.lexeme(), value);
+            }
+        };
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -109,6 +145,7 @@ pub enum InterpreterError {
     UnaryMinusOperandMustBeNumber(LoxValue),
     OperandsMustBeNumbers,
     OperandsMustBeNumbersOrStr,
+    UndefinedVariable(Token),
 }
 impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -121,6 +158,8 @@ impl Display for InterpreterError {
                 write!(f, "Operands must be numbers."),
             InterpreterError::OperandsMustBeNumbersOrStr =>
                 write!(f, "Operands must be numbers or strings."),
+            InterpreterError::UndefinedVariable(tok) => 
+                write!(f, "Undefined variable '{}'.", tok.lexeme())
         }
     }
 }

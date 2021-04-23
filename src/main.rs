@@ -10,6 +10,7 @@ mod parser;
 mod scanner;
 mod token;
 mod value;
+mod environment;
 
 struct Lox {
     reporter: ErrorReporter,
@@ -25,10 +26,10 @@ impl Lox {
         let tokens = scanner.scan_tokens()?;
     
         let mut parser = Parser::new(tokens);
-        let mut expression = parser.parse()?;
+        let mut statements = parser.parse()?;
     
-        let mut interpreter = Interpreter {};
-        interpreter.interpret(&mut expression);
+        let mut interpreter = Interpreter::new();
+        interpreter.interpret(&statements);
     
         Ok(())
     }

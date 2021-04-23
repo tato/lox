@@ -1,10 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{
-    ast::Expr,
-    token::{Token, TokenKind},
-    value::LoxValue,
-};
+use crate::{ast::{Expr, Stmt}, token::{Token, TokenKind}, value::LoxValue};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -61,8 +57,63 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
-    pub fn parse(&mut self) -> Result<Expr, ParserError> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+        let mut statements = vec![];
+        while !self.is_at_end() {
+            if let Ok(stmt) = self.declaration() {
+                statements.push(stmt);
+            }
+        }
+        Ok(statements)
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParserError> {
+        let stmt = if self.exact(&[TokenKind::Var]) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        };
+
+        match stmt {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                self.synchronize();
+                Err(e)
+            }
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, ParserError> {
+        let name = self.consume(TokenKind::Identifier, "Expect variable name.")?;
+
+        let initializer = if self.exact(&[TokenKind::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(TokenKind::Semicolon, "Expect ';' after variable declaration.")?;
+        Ok(Stmt::Var{ name, initializer })
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParserError> {
+        if self.exact(&[TokenKind::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParserError> {
+        let value = self.expression()?;
+        self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print{ expression: value })
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
+        let expr = self.expression()?;
+        self.consume(TokenKind::Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expression{ expression: expr })
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {
@@ -174,6 +225,8 @@ impl Parser {
             Ok(Expr::Grouping {
                 expression: expr.into(),
             })
+        } else if self.exact(&[TokenKind::Identifier]) {
+            Ok(Expr::Variable{ name: self.previous() })
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
         }
