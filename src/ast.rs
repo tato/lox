@@ -30,37 +30,3 @@ impl Expr {
         visitor.visit(self)
     }
 }
-
-pub struct AstPrinter {}
-impl Visitor for AstPrinter {
-    type Return = String;
-    fn visit(&mut self, expr: &mut Expr) -> Self::Return {
-        match expr {
-            Expr::Binary {
-                left,
-                operator,
-                right,
-            } => self.parenthesize(&operator.lexeme(), &mut [left, right]),
-            Expr::Grouping { expression } => self.parenthesize("group", &mut [expression]),
-            Expr::Literal { value } => value.to_string(),
-            Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme(), &mut [right]),
-        }
-    }
-}
-
-impl AstPrinter {
-    pub fn print(&mut self, expr: &mut Expr) -> String {
-        self.visit(expr)
-    }
-
-    fn parenthesize(&mut self, name: &str, exprs: &mut [&mut Expr]) -> String {
-        let mut result = "(".to_string();
-        result += name;
-        for expr in exprs {
-            result += " ";
-            result += &expr.accept(self);
-        }
-        result += ")";
-        result
-    }
-}

@@ -31,13 +31,18 @@ impl std::fmt::Display for ErrorInfo {
 }
 impl std::error::Error for ErrorInfo {}
 
-// pub struct ErrorReporter {
-// }
-// impl ErrorReporter {
-//     pub fn new() -> Self {
-//         ErrorReporter{ }
-//     }
-//     pub fn report(line: i32, location: &str, message: &str) {
-//         println!("[line {}] Error{}: {}", line, location, message);
-//     }
-// }
+pub struct ErrorReporter {
+    had_error: bool,
+    had_runtime_error: bool,
+}
+impl ErrorReporter {
+    pub fn new() -> Self {
+        ErrorReporter{
+            had_error: false, had_runtime_error: false
+        }
+    }
+    pub fn report(line: i32, location: &str, message: &str) {
+        println!("[line {}] Error{}: {}", line, location, message);
+    }
+}
+

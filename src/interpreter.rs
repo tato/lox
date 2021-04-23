@@ -1,10 +1,10 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{ast::{Expr, Visitor}, value::LoxValue, token::TokenKind};
+use crate::{ast::{Expr, Visitor}, error::ErrorReporter, token::TokenKind, value::LoxValue};
 
 pub struct Interpreter {}
 impl Interpreter {
-    pub fn interpret(&mut self, expression: &mut Expr) {
+    pub fn interpret(&mut self, expression: &mut Expr, reporter: &mut ErrorReporter) {
         let result = expression.accept(self);
         match result {
             Ok(val) => println!("{}", val.to_string()),
