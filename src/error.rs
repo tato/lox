@@ -37,12 +37,12 @@ pub struct ErrorReporter {
 }
 impl ErrorReporter {
     pub fn new() -> Self {
-        ErrorReporter{
-            had_error: false, had_runtime_error: false
+        ErrorReporter {
+            had_error: false,
+            had_runtime_error: false,
         }
     }
     pub fn report(line: i32, location: &str, message: &str) {
         println!("[line {}] Error{}: {}", line, location, message);
     }
 }
-

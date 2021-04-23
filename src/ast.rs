@@ -22,6 +22,10 @@ pub enum Expr {
     Variable {
         name: Token,
     },
+    Assign {
+        name: Token,
+        value: Box<Expr>,
+    },
 }
 
 #[derive(Debug)]
@@ -33,6 +37,10 @@ pub enum Stmt {
         expression: Expr,
     },
     Var {
-        name: Token, initializer: Option<Expr>,
+        name: Token,
+        initializer: Option<Expr>,
+    },
+    Block {
+        statements: Vec<Stmt>,
     },
 }

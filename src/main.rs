@@ -1,16 +1,15 @@
-
 use error::ErrorReporter;
 use interpreter::Interpreter;
 use parser::Parser;
 
 mod ast;
+mod environment;
 mod error;
 mod interpreter;
 mod parser;
 mod scanner;
 mod token;
 mod value;
-mod environment;
 
 struct Lox {
     reporter: ErrorReporter,
@@ -18,27 +17,29 @@ struct Lox {
 
 impl Lox {
     pub fn new() -> Self {
-        Self { reporter: ErrorReporter::new() }
+        Self {
+            reporter: ErrorReporter::new(),
+        }
     }
 
     pub fn run(&mut self, source: String) -> anyhow::Result<()> {
         let scanner = scanner::Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
-    
+
         let mut parser = Parser::new(tokens);
         let mut statements = parser.parse()?;
-    
+
         let mut interpreter = Interpreter::new();
         interpreter.interpret(&statements);
-    
+
         Ok(())
     }
-    
+
     pub fn run_file(&mut self, path: &str) -> anyhow::Result<()> {
         let bytes = std::fs::read(path)?;
         self.run(std::str::from_utf8(&bytes)?.into())
     }
-    
+
     pub fn run_prompt(&mut self) -> anyhow::Result<()> {
         let stdin = std::io::stdin();
         let mut stdout = std::io::stdout();
