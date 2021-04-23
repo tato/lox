@@ -129,6 +129,25 @@ impl Interpreter {
                     _ => Err(InterpreterError::Internal),
                 }
             }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.evaluate(left)?;
+
+                if operator.kind == TokenKind::Or {
+                    if left.is_truthy() {
+                        return Ok(left);
+                    }
+                } else {
+                    if !left.is_truthy() {
+                        return Ok(left);
+                    }
+                }
+
+                self.evaluate(right)
+            }
         }
     }
 
@@ -152,6 +171,22 @@ impl Interpreter {
             Stmt::Block { statements } => {
                 self.execute_block(statements, Environment::new_child(self.environment.clone()))?;
             }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if self.evaluate(condition)?.is_truthy() {
+                    self.execute(then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(else_branch)?;
+                }
+            }
+            Stmt::While { condition, body } => {
+                while self.evaluate(condition)?.is_truthy() {
+                    self.execute(body)?;
+                }
+            }
         };
         Ok(())
     }
@@ -170,7 +205,7 @@ impl Interpreter {
                 return result;
             }
         }
-        
+
         self.environment = previous;
         Ok(())
     }

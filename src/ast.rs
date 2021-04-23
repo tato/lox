@@ -15,6 +15,11 @@ pub enum Expr {
     Literal {
         value: LoxValue,
     },
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -40,7 +45,16 @@ pub enum Stmt {
         name: Token,
         initializer: Option<Expr>,
     },
+    While {
+        condition: Expr,
+        body: Box<Stmt>,
+    },
     Block {
         statements: Vec<Stmt>,
+    },
+    If {
+        condition: Expr,
+        then_branch: Box<Stmt>,
+        else_branch: Option<Box<Stmt>>,
     },
 }

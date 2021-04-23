@@ -104,8 +104,14 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParserError> {
-        if self.exact(&[TokenKind::Print]) {
+        if self.exact(&[TokenKind::For]) {
+            self.for_statement()
+        } else if self.exact(&[TokenKind::If]) {
+            self.if_statement()
+        } else if self.exact(&[TokenKind::Print]) {
             self.print_statement()
+        } else if self.exact(&[TokenKind::While]) {
+            self.while_statement()
         } else if self.exact(&[TokenKind::LeftBrace]) {
             Ok(Stmt::Block {
                 statements: self.block()?,
@@ -122,6 +128,88 @@ impl Parser {
         }
         self.consume(TokenKind::RightBrace, "Expect '}' after block.")?;
         Ok(statemets)
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenKind::RightParen, "Expect ')' after if condition.")?;
+
+        let then_branch = self.statement()?.into();
+        let else_branch = if self.exact(&[TokenKind::Else]) {
+            Some(self.statement()?.into())
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenKind::RightParen, "Expect ')' after condition.")?;
+        let body = self.statement()?.into();
+
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'for'.")?;
+
+        let initializer = if self.exact(&[TokenKind::Semicolon]) {
+            None
+        } else if self.exact(&[TokenKind::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if !self.check(TokenKind::Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
+
+        let increment = if !self.check(TokenKind::RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenKind::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::Block {
+                statements: vec![
+                    body,
+                    Stmt::Expression {
+                        expression: increment,
+                    },
+                ],
+            }
+        }
+
+        body = Stmt::While {
+            condition: condition.unwrap_or_else(|| Expr::Literal {
+                value: LoxValue::Bool(true),
+            }),
+            body: body.into(),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body],
+            }
+        }
+
+        Ok(body)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParserError> {
@@ -141,7 +229,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParserError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.exact(&[TokenKind::Equal]) {
             let equals = self.previous();
@@ -161,6 +249,34 @@ impl Parser {
         } else {
             Ok(expr)
         }
+    }
+
+    fn or(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.and()?;
+        while self.exact(&[TokenKind::Or]) {
+            let operator = self.previous();
+            let right = self.and()?.into();
+            expr = Expr::Logical {
+                left: expr.into(),
+                operator,
+                right,
+            };
+        }
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.equality()?;
+        while self.exact(&[TokenKind::And]) {
+            let operator = self.previous();
+            let right = self.equality()?.into();
+            expr = Expr::Logical {
+                left: expr.into(),
+                operator,
+                right,
+            };
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParserError> {
