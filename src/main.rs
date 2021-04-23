@@ -28,7 +28,7 @@ impl Lox {
         let mut expression = parser.parse()?;
     
         let mut interpreter = Interpreter {};
-        interpreter.interpret(&mut expression, &mut self.reporter);
+        interpreter.interpret(&mut expression);
     
         Ok(())
     }

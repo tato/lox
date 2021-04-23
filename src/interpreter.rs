@@ -1,26 +1,23 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{ast::{Expr, Visitor}, error::ErrorReporter, token::TokenKind, value::LoxValue};
+use crate::{ast::{Expr}, token::TokenKind, value::LoxValue};
 
 pub struct Interpreter {}
 impl Interpreter {
-    pub fn interpret(&mut self, expression: &mut Expr, reporter: &mut ErrorReporter) {
-        let result = expression.accept(self);
+    pub fn interpret(&mut self, expression: &mut Expr) {
+        let result = self.solve_expr(expression);
         match result {
             Ok(val) => println!("{}", val.to_string()),
             Err(e) => eprintln!("{}", e),
         }
     }
-}
-impl Visitor for Interpreter {
-    type Return = Result<LoxValue, InterpreterError>;
 
-    fn visit(&mut self, expr: &mut Expr) -> Self::Return {
+    fn solve_expr(&mut self, expr: &mut Expr) -> Result<LoxValue, InterpreterError> {
         match expr {
             Expr::Literal{ value } => Ok(value.clone()),
-            Expr::Grouping{ expression } => expression.accept(self),
+            Expr::Grouping{ expression } => self.solve_expr(expression),
             Expr::Unary{ operator, right } => {
-                let right = right.accept(self)?;
+                let right = self.solve_expr(right)?;
                 match operator.kind {
                     TokenKind::Minus => match right {
                         LoxValue::Float(f) => Ok(LoxValue::Float(-f)),
@@ -31,8 +28,8 @@ impl Visitor for Interpreter {
                 }
             },
             Expr::Binary{ left, operator, right } => {
-                let left = left.accept(self)?;
-                let right = right.accept(self)?;
+                let left = self.solve_expr(left)?;
+                let right = self.solve_expr(right)?;
 
                 match operator.kind {
                     TokenKind::Minus => {
