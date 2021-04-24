@@ -32,17 +32,17 @@ impl std::fmt::Display for ErrorInfo {
 impl std::error::Error for ErrorInfo {}
 
 pub struct ErrorReporter {
-    had_error: bool,
-    had_runtime_error: bool,
+    _had_error: bool,
+    _had_runtime_error: bool,
 }
 impl ErrorReporter {
     pub fn new() -> Self {
         ErrorReporter {
-            had_error: false,
-            had_runtime_error: false,
+            _had_error: false,
+            _had_runtime_error: false,
         }
     }
-    pub fn report(line: i32, location: &str, message: &str) {
+    pub fn _report(line: i32, location: &str, message: &str) {
         println!("[line {}] Error{}: {}", line, location, message);
     }
 }

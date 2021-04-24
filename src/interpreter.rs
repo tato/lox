@@ -1,19 +1,44 @@
-use std::{cell::RefCell, error::Error, fmt::Display, rc::Rc};
-
 use crate::{
     ast::{Expr, Stmt},
     environment::Environment,
     token::{Token, TokenKind},
-    value::LoxValue,
+    value::{LoxFunction, LoxValue},
+};
+use std::{
+    cell::RefCell,
+    error::Error,
+    fmt::Display,
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub struct Interpreter {
+    _globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Environment::new();
+        globals.borrow_mut().define(
+            "clock".into(),
+            LoxValue::Callable(LoxFunction {
+                args: vec![],
+                callable: |_: &Interpreter,
+                           _: Vec<LoxValue>|
+                 -> Result<LoxValue, InterpreterError> {
+                    Ok(LoxValue::Float(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map_err(|_| InterpreterError::Internal)?
+                            .as_millis() as f64,
+                    ))
+                },
+            }),
+        );
+
         Self {
-            environment: Environment::new(),
+            _globals: globals.clone(),
+            environment: globals.clone(),
         }
     }
 
@@ -37,6 +62,31 @@ impl Interpreter {
                 .borrow()
                 .get(&name.lexeme())
                 .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone())),
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(callee)?;
+                let arguments = arguments
+                    .iter()
+                    .map(|it| self.evaluate(it))
+                    .collect::<Result<Vec<LoxValue>, InterpreterError>>()?;
+
+                if let LoxValue::Callable(fun) = &callee {
+                    if arguments.len() != fun.arity() {
+                        Err(InterpreterError::FunctionArity(
+                            paren.clone(),
+                            fun.arity(),
+                            arguments.len(),
+                        ))
+                    } else {
+                        fun.call(self, arguments)
+                    }
+                } else {
+                    Err(InterpreterError::NotCallable(callee))
+                }
+            }
             Expr::Grouping { expression } => self.evaluate(expression),
             Expr::Unary { operator, right } => {
                 let right = self.evaluate(right)?;
@@ -218,6 +268,8 @@ pub enum InterpreterError {
     OperandsMustBeNumbers,
     OperandsMustBeNumbersOrStr,
     UndefinedVariable(Token),
+    NotCallable(LoxValue),
+    FunctionArity(Token, usize, usize),
 }
 impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -234,6 +286,12 @@ impl Display for InterpreterError {
             }
             InterpreterError::UndefinedVariable(tok) => {
                 write!(f, "Undefined variable '{}'.", tok.lexeme())
+            }
+            InterpreterError::NotCallable(val) => {
+                write!(f, "'{}' is not callable.", val)
+            }
+            InterpreterError::FunctionArity(_at, expected, got) => {
+                write!(f, "Expected {} arguments but got {}.", expected, got)
             }
         }
     }

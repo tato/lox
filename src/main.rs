@@ -12,13 +12,13 @@ mod token;
 mod value;
 
 struct Lox {
-    reporter: ErrorReporter,
+    _reporter: ErrorReporter,
 }
 
 impl Lox {
     pub fn new() -> Self {
         Self {
-            reporter: ErrorReporter::new(),
+            _reporter: ErrorReporter::new(),
         }
     }
 
@@ -27,7 +27,7 @@ impl Lox {
         let tokens = scanner.scan_tokens()?;
 
         let mut parser = Parser::new(tokens);
-        let mut statements = parser.parse()?;
+        let statements = parser.parse()?;
 
         let mut interpreter = Interpreter::new();
         interpreter.interpret(&statements);
