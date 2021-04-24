@@ -10,6 +10,7 @@ mod parser;
 mod scanner;
 mod token;
 mod value;
+mod resolver;
 
 struct Lox {
     _reporter: ErrorReporter,

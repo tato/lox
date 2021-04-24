@@ -178,7 +178,7 @@ impl Parser {
         } else {
             None
         };
-        self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
+        let condition_semicolon = self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
 
         let increment = if !self.check(TokenKind::RightParen) {
             Some(self.expression()?)
@@ -202,7 +202,13 @@ impl Parser {
 
         body = Stmt::While {
             condition: condition.unwrap_or(Expr::Literal {
-                value: LoxValue::Bool(true),
+                value: Token {
+                    kind: TokenKind::True,
+                    lexeme: "true".into(),
+                    literal: LoxValue::Bool(true),
+                    line: condition_semicolon.line,
+                    scanner_index: condition_semicolon.scanner_index,
+                },
             }),
             body: body.into(),
         };
@@ -450,19 +456,19 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParserError> {
         if self.exact(&[TokenKind::False]) {
             Ok(Expr::Literal {
-                value: LoxValue::Bool(false),
+                value: self.previous(),
             })
         } else if self.exact(&[TokenKind::True]) {
             Ok(Expr::Literal {
-                value: LoxValue::Bool(true),
+                value: self.previous(),
             })
         } else if self.exact(&[TokenKind::Nil]) {
             Ok(Expr::Literal {
-                value: LoxValue::Nil,
+                value: self.previous(),
             })
         } else if self.exact(&[TokenKind::Number, TokenKind::String]) {
             Ok(Expr::Literal {
-                value: self.previous().literal,
+                value: self.previous(),
             })
         } else if self.exact(&[TokenKind::LeftParen]) {
             let expr = self.expression()?;
@@ -506,7 +512,7 @@ fn report(line: usize, wher: &str, message: &str) {
     // hadError = true;
 }
 fn parser_error(token: Token, message: &str) -> ParserError {
-    report(token.line, &format!("at '{}'", token.lexeme()), message);
+    report(token.line, &format!("at '{}'", token.lexeme), message);
     ParserError {
         token,
         message: message.to_string(),

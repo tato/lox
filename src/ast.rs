@@ -1,8 +1,8 @@
 // use lox_derive_ast::make_ast;
 use crate::token::Token;
-use crate::value::LoxValue;
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -18,7 +18,7 @@ pub enum Expr {
         expression: Box<Expr>,
     },
     Literal {
-        value: LoxValue,
+        value: Token,
     },
     Logical {
         left: Box<Expr>,

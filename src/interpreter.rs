@@ -4,11 +4,12 @@ use crate::{
     token::{Token, TokenKind},
     value::{BuiltInFunction, LoxValue, UserFunction},
 };
-use std::{error::Error, fmt::Display, sync::{Arc, Mutex}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashMap, error::Error, fmt::Display, sync::{Arc, Mutex}, time::{SystemTime, UNIX_EPOCH}};
 
 pub struct Interpreter {
     _globals: Arc<Mutex<Environment>>,
     environment: Arc<Mutex<Environment>>,
+    locals: HashMap<Expr, usize>,
 }
 impl Interpreter {
     pub fn new() -> Self {
@@ -22,12 +23,13 @@ impl Interpreter {
                         .map_err(|_| InterpreterError::Internal)?
                         .as_millis() as f64,
                 ))
-            })),
+            }).into()),
         );
 
         Self {
             _globals: globals.clone(),
             environment: globals,
+            locals: HashMap::new(),
         }
     }
 
@@ -45,12 +47,12 @@ impl Interpreter {
 
     fn evaluate(&mut self, expr: &Expr) -> Result<LoxValue, InterpreterError> {
         match expr {
-            Expr::Literal { value } => Ok(value.clone()),
+            Expr::Literal { value } => Ok(value.literal.clone()),
             Expr::Variable { name } => self
                 .environment
                 .lock()
                 .unwrap()
-                .get(&name.lexeme())
+                .get(&name.lexeme)
                 .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone())),
             Expr::Call {
                 callee,
@@ -94,7 +96,7 @@ impl Interpreter {
                 self.environment
                     .lock()
                     .unwrap()
-                    .assign(name.lexeme(), value.clone())
+                    .assign(&name.lexeme, value.clone())
                     .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone()))?;
                 Ok(value)
             }
@@ -212,7 +214,7 @@ impl Interpreter {
                 } else {
                     LoxValue::Nil
                 };
-                self.environment.lock().unwrap().define(name.lexeme(), value);
+                self.environment.lock().unwrap().define(&name.lexeme, value);
             }
             Stmt::Block { statements } => {
                 self.execute_block(statements, Environment::new_child(self.environment.clone()))?;
@@ -238,7 +240,7 @@ impl Interpreter {
                 self.environment
                     .lock()
                     .unwrap()
-                    .define(name.lexeme(), LoxValue::UserFunction(function));
+                    .define(&name.lexeme, LoxValue::UserFunction(function.into()));
             }
         };
         Ok(())
@@ -261,6 +263,10 @@ impl Interpreter {
 
         self.environment = previous;
         Ok(())
+    }
+
+    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+        self.locals.insert(expr.clone(), depth);
     }
 }
 
@@ -289,7 +295,7 @@ impl Display for InterpreterError {
                 write!(f, "Operands must be numbers or strings.")
             }
             InterpreterError::UndefinedVariable(tok) => {
-                write!(f, "Undefined variable '{}'.", tok.lexeme())
+                write!(f, "Undefined variable '{}'.", tok.lexeme)
             }
             InterpreterError::NotCallable(val) => {
                 write!(f, "'{}' is not callable.", val)

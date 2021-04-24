@@ -70,18 +70,19 @@ impl Debug for UserFunction {
         write!(
             f,
             "<fun {}({})>",
-            self.name.lexeme(),
+            self.name.lexeme,
             self.args
                 .iter()
-                .map(Token::lexeme)
-                .collect::<Vec<_>>()
+                .map(|it| &it.lexeme)
+                .map(|it| &**it)
+                .collect::<Vec<&str>>()
                 .join(", ")
         )
     }
 }
 impl PartialEq for UserFunction {
     fn eq(&self, other: &Self) -> bool {
-        self.name.lexeme() == other.name.lexeme() && self.name.line == other.name.line
+        self.name.lexeme == other.name.lexeme && self.name.line == other.name.line
         // TODO! !?
     }
 }
@@ -106,7 +107,7 @@ impl LoxCallable for UserFunction {
             environment
                 .lock()
                 .unwrap()
-                .define(arg.lexeme(), arg_value.clone());
+                .define(&arg.lexeme, arg_value.clone());
         }
         if let Err(e) = interpreter.execute_block(&self.body, environment) {
             match e {
@@ -127,8 +128,8 @@ pub enum LoxValue {
     Bool(bool),
     Float(f64),
     Str(String),
-    BuiltInFunction(BuiltInFunction),
-    UserFunction(UserFunction),
+    BuiltInFunction(Box<BuiltInFunction>),
+    UserFunction(Box<UserFunction>),
     Nil,
 }
 impl Display for LoxValue {
@@ -157,8 +158,8 @@ impl LoxValue {
     }
     pub fn as_callable(&self) -> Option<&dyn LoxCallable> {
         match self {
-            LoxValue::BuiltInFunction(x) => Some(x),
-            LoxValue::UserFunction(x) => Some(x),
+            LoxValue::BuiltInFunction(x) => Some(x.as_ref()),
+            LoxValue::UserFunction(x) => Some(x.as_ref()),
             _ => None,
         }
     }

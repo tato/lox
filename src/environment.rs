@@ -26,12 +26,12 @@ impl Environment {
             .into(),
         )
     }
-    pub fn define(&mut self, name: String, value: LoxValue) {
-        self.values.insert(name, value);
+    pub fn define(&mut self, name: &str, value: LoxValue) {
+        self.values.insert(name.to_string(), value);
     }
-    pub fn assign(&mut self, name: String, value: LoxValue) -> Option<LoxValue> {
-        if self.values.contains_key(&name) {
-            self.values.insert(name, value)
+    pub fn assign(&mut self, name: &str, value: LoxValue) -> Option<LoxValue> {
+        if self.values.contains_key(name) {
+            self.values.insert(name.to_string(), value)
         } else if let Some(enclosing) = &self.enclosing {
             enclosing.lock().unwrap().assign(name, value)
         } else {
