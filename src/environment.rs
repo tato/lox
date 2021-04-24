@@ -38,7 +38,7 @@ impl Environment {
             None
         }
     }
-    pub fn get(&self, name: &String) -> Option<LoxValue> {
+    pub fn get(&self, name: &str) -> Option<LoxValue> {
         let mut value = self.values.get(name).cloned();
         if value.is_none() {
             if let Some(enclosing) = &self.enclosing {

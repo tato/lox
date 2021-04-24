@@ -23,7 +23,7 @@ impl Parser {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn check(&self, kind: TokenKind) -> bool {
@@ -112,6 +112,8 @@ impl Parser {
             self.if_statement()
         } else if self.exact(&[TokenKind::Print]) {
             self.print_statement()
+        } else if self.exact(&[TokenKind::Return]) {
+            self.return_statement()
         } else if self.exact(&[TokenKind::While]) {
             self.while_statement()
         } else if self.exact(&[TokenKind::LeftBrace]) {
@@ -199,7 +201,7 @@ impl Parser {
         }
 
         body = Stmt::While {
-            condition: condition.unwrap_or_else(|| Expr::Literal {
+            condition: condition.unwrap_or(Expr::Literal {
                 value: LoxValue::Bool(true),
             }),
             body: body.into(),
@@ -218,6 +220,17 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print { expression: value })
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, ParserError> {
+        let keyword = self.previous();
+        let value = if !self.check(TokenKind::Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenKind::Semicolon, "Expect ';' after 'return'.")?;
+        Ok(Stmt::Return { keyword, value })
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParserError> {

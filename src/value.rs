@@ -85,11 +85,11 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(name: &Token, args: &Vec<Token>, body: &Vec<Stmt>) -> Self {
+    pub fn new(name: &Token, args: &[Token], body: &[Stmt]) -> Self {
         Self {
             name: name.clone().into(),
-            args: args.clone(),
-            body: body.clone(),
+            args: args.to_vec(),
+            body: body.to_vec(),
         }
     }
 }
@@ -100,13 +100,19 @@ impl LoxCallable for UserFunction {
         args: Vec<LoxValue>,
     ) -> Result<LoxValue, InterpreterError> {
         let environment = Environment::new_child(interpreter.globals.clone());
-        for i in 0..(self.arity().min(args.len())) {
+        for (arg, arg_value) in self.args.iter().zip(&args) {
             environment
                 .borrow_mut()
-                .define(self.args[i].lexeme(), args[i].clone());
+                .define(arg.lexeme(), arg_value.clone());
         }
-        interpreter.execute_block(&self.body, environment)?;
-        Ok(LoxValue::Nil)
+        if let Err(e) = interpreter.execute_block(&self.body, environment) {
+            match e {
+                InterpreterError::Return(v) => Ok(v),
+                e => Err(e),
+            }
+        } else {
+            Ok(LoxValue::Nil)
+        }
     }
     fn arity(&self) -> usize {
         self.args.len()

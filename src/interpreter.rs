@@ -33,11 +33,11 @@ impl Interpreter {
 
         Self {
             globals: globals.clone(),
-            environment: globals.clone(),
+            environment: globals,
         }
     }
 
-    pub fn interpret(&mut self, statements: &Vec<Stmt>) {
+    pub fn interpret(&mut self, statements: &[Stmt]) {
         for statement in statements {
             match self.execute(statement) {
                 Ok(_) => {}
@@ -181,13 +181,14 @@ impl Interpreter {
             } => {
                 let left = self.evaluate(left)?;
 
-                if operator.kind == TokenKind::Or && left.is_truthy() {
-                    Ok(left)
+                if operator.kind == TokenKind::Or {
+                    if left.is_truthy() {
+                        return Ok(left);
+                    }
                 } else if !left.is_truthy() {
-                    Ok(left)
-                } else {
-                    self.evaluate(right)
-                }
+                    return Ok(left);
+                } 
+                self.evaluate(right)
             }
         }
     }
@@ -200,6 +201,14 @@ impl Interpreter {
             Stmt::Print { expression } => {
                 let value = self.evaluate(expression)?;
                 println!("{}", value.to_string());
+            }
+            Stmt::Return { value, .. } => {
+                let value = if let Some(v) = value {
+                    self.evaluate(v)?
+                } else {
+                    LoxValue::Nil
+                };
+                return Err(InterpreterError::Return(value));
             }
             Stmt::Var { name, initializer } => {
                 let value = if let Some(expr) = initializer {
@@ -240,7 +249,7 @@ impl Interpreter {
 
     pub fn execute_block(
         &mut self,
-        statements: &Vec<Stmt>,
+        statements: &[Stmt],
         environment: Rc<RefCell<Environment>>,
     ) -> Result<(), InterpreterError> {
         let previous = self.environment.clone();
@@ -267,6 +276,7 @@ pub enum InterpreterError {
     UndefinedVariable(Token),
     NotCallable(LoxValue),
     FunctionArity(Token, usize, usize),
+    Return(LoxValue),
 }
 impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -290,6 +300,7 @@ impl Display for InterpreterError {
             InterpreterError::FunctionArity(_at, expected, got) => {
                 write!(f, "Expected {} arguments but got {}.", expected, got)
             }
+            InterpreterError::Return(_) => write!(f, "INTERNAL ERROR: Return was not caught."),
         }
     }
 }

@@ -58,7 +58,7 @@ impl Scanner {
             LoxValue::Nil,
             self.line,
         ));
-        return Ok(self.tokens);
+        Ok(self.tokens)
     }
 
     fn is_at_end(&self) -> bool {
@@ -122,8 +122,8 @@ impl Scanner {
             ' ' | '\r' | '\t' => {}
             '\n' => self.line += 1,
             '"' => self.string()?,
-            c if c.is_digit(10) => self.number()?,
-            c if c == '_' || c.is_alphabetic() => self.identifier()?,
+            c if c.is_digit(10) => self.number(),
+            c if c == '_' || c.is_alphabetic() => self.identifier(),
             _ => return Err(ErrorInfo::line(self.line, "Unexpected character")),
         }
         Ok(())
@@ -138,7 +138,7 @@ impl Scanner {
         }
 
         self.current += 1;
-        return true;
+        true
     }
 
     fn advance(&mut self) -> char {
@@ -168,10 +168,7 @@ impl Scanner {
     }
 
     fn add_literal_token(&mut self, kind: TokenKind, literal: LoxValue) {
-        let text: Vec<char> = self.source[self.start..self.current]
-            .iter()
-            .cloned()
-            .collect();
+        let text: Vec<char> = self.source[self.start..self.current].to_vec();
         self.tokens.push(Token::new(kind, text, literal, self.line));
     }
 
@@ -194,7 +191,7 @@ impl Scanner {
         Ok(())
     }
 
-    fn number(&mut self) -> Result<(), ErrorInfo> {
+    fn number(&mut self) {
         while self.peek().is_digit(10) {
             self.advance();
         }
@@ -209,12 +206,11 @@ impl Scanner {
             .cloned()
             .collect::<String>()
             .parse()
-            .unwrap_or_default();
+            .expect("Couldn't parse number");
         self.add_literal_token(TokenKind::Number, LoxValue::Float(value));
-        Ok(())
     }
 
-    fn identifier(&mut self) -> Result<(), ErrorInfo> {
+    fn identifier(&mut self) {
         while self.peek().is_alphanumeric() {
             self.advance();
         }
@@ -224,9 +220,8 @@ impl Scanner {
             .collect::<String>();
         let kind = RESERVED_WORDS
             .get(&text)
-            .map(|&it| it)
+            .copied()
             .unwrap_or(TokenKind::Identifier);
         self.add_token(kind);
-        Ok(())
     }
 }
