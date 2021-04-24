@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, sync::{Arc, Mutex}};
 
 use crate::{
     ast::Stmt,
@@ -63,6 +63,7 @@ pub struct UserFunction {
     name: Box<Token>,
     args: Vec<Token>,
     body: Vec<Stmt>,
+    closure: Arc<Mutex<Environment>>,
 }
 impl Debug for UserFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -85,11 +86,12 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(name: &Token, args: &[Token], body: &[Stmt]) -> Self {
+    pub fn new(name: &Token, args: &[Token], body: &[Stmt], closure: Arc<Mutex<Environment>>) -> Self {
         Self {
             name: name.clone().into(),
             args: args.to_vec(),
             body: body.to_vec(),
+            closure,
         }
     }
 }
@@ -99,10 +101,11 @@ impl LoxCallable for UserFunction {
         interpreter: &mut Interpreter,
         args: Vec<LoxValue>,
     ) -> Result<LoxValue, InterpreterError> {
-        let environment = Environment::new_child(interpreter.globals.clone());
+        let environment = Environment::new_child(self.closure.clone());
         for (arg, arg_value) in self.args.iter().zip(&args) {
             environment
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .define(arg.lexeme(), arg_value.clone());
         }
         if let Err(e) = interpreter.execute_block(&self.body, environment) {

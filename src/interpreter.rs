@@ -4,22 +4,16 @@ use crate::{
     token::{Token, TokenKind},
     value::{BuiltInFunction, LoxValue, UserFunction},
 };
-use std::{
-    cell::RefCell,
-    error::Error,
-    fmt::Display,
-    rc::Rc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{error::Error, fmt::Display, sync::{Arc, Mutex}, time::{SystemTime, UNIX_EPOCH}};
 
 pub struct Interpreter {
-    pub globals: Rc<RefCell<Environment>>,
-    environment: Rc<RefCell<Environment>>,
+    _globals: Arc<Mutex<Environment>>,
+    environment: Arc<Mutex<Environment>>,
 }
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Environment::new();
-        globals.borrow_mut().define(
+        globals.lock().unwrap().define(
             "clock".into(),
             LoxValue::BuiltInFunction(BuiltInFunction::new("clock", vec![], |_, _| {
                 Ok(LoxValue::Float(
@@ -32,7 +26,7 @@ impl Interpreter {
         );
 
         Self {
-            globals: globals.clone(),
+            _globals: globals.clone(),
             environment: globals,
         }
     }
@@ -54,7 +48,8 @@ impl Interpreter {
             Expr::Literal { value } => Ok(value.clone()),
             Expr::Variable { name } => self
                 .environment
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&name.lexeme())
                 .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone())),
             Expr::Call {
@@ -97,7 +92,8 @@ impl Interpreter {
             Expr::Assign { name, value } => {
                 let value = self.evaluate(value)?;
                 self.environment
-                    .borrow_mut()
+                    .lock()
+                    .unwrap()
                     .assign(name.lexeme(), value.clone())
                     .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone()))?;
                 Ok(value)
@@ -216,7 +212,7 @@ impl Interpreter {
                 } else {
                     LoxValue::Nil
                 };
-                self.environment.borrow_mut().define(name.lexeme(), value);
+                self.environment.lock().unwrap().define(name.lexeme(), value);
             }
             Stmt::Block { statements } => {
                 self.execute_block(statements, Environment::new_child(self.environment.clone()))?;
@@ -238,9 +234,10 @@ impl Interpreter {
                 }
             }
             Stmt::Function { name, params, body } => {
-                let function = UserFunction::new(name, params, body);
+                let function = UserFunction::new(name, params, body, self.environment.clone());
                 self.environment
-                    .borrow_mut()
+                    .lock()
+                    .unwrap()
                     .define(name.lexeme(), LoxValue::UserFunction(function));
             }
         };
@@ -250,7 +247,7 @@ impl Interpreter {
     pub fn execute_block(
         &mut self,
         statements: &[Stmt],
-        environment: Rc<RefCell<Environment>>,
+        environment: Arc<Mutex<Environment>>,
     ) -> Result<(), InterpreterError> {
         let previous = self.environment.clone();
         self.environment = environment;
