@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::value::LoxValue;
 
@@ -38,6 +41,17 @@ impl Environment {
             None
         }
     }
+    pub fn assign_at(&mut self, distance: usize, name: &str, value: LoxValue) -> Option<LoxValue> {
+        if distance > 0 {
+            self.ancestor(distance)
+                .lock()
+                .unwrap()
+                .values
+                .insert(name.to_string(), value)
+        } else {
+            self.values.insert(name.to_string(), value)
+        }
+    }
     pub fn get(&self, name: &str) -> Option<LoxValue> {
         let mut value = self.values.get(name).cloned();
         if value.is_none() {
@@ -46,5 +60,33 @@ impl Environment {
             }
         }
         value
+    }
+    pub fn get_at(&self, distance: usize, name: &str) -> Option<LoxValue> {
+        if distance > 0 {
+            self.ancestor(distance)
+                .lock()
+                .unwrap()
+                .values
+                .get(name)
+                .cloned()
+        } else {
+            self.values.get(name).cloned()
+        }
+    }
+
+    fn ancestor(&self, distance: usize) -> Arc<Mutex<Environment>> {
+        assert!(distance > 0);
+        assert!(self.enclosing.is_some());
+
+        // yuck
+        let mut env = self.enclosing.clone();
+        for _ in 0..(distance - 1) {
+            let some = env.take().unwrap();
+            let locked = some.lock().unwrap();
+            if let Some(enclosing) = locked.enclosing.as_ref() {
+                env = Some(enclosing.clone())
+            }
+        }
+        env.unwrap()
     }
 }

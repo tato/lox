@@ -1,16 +1,17 @@
 use error::ErrorReporter;
 use interpreter::Interpreter;
 use parser::Parser;
+use resolver::Resolver;
 
 mod ast;
 mod environment;
 mod error;
 mod interpreter;
 mod parser;
+mod resolver;
 mod scanner;
 mod token;
 mod value;
-mod resolver;
 
 struct Lox {
     _reporter: ErrorReporter,
@@ -31,6 +32,8 @@ impl Lox {
         let statements = parser.parse()?;
 
         let mut interpreter = Interpreter::new();
+        let mut resolver = Resolver::new(&mut interpreter);
+        resolver.resolve(&statements);
         interpreter.interpret(&statements);
 
         Ok(())

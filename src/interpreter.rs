@@ -4,10 +4,16 @@ use crate::{
     token::{Token, TokenKind},
     value::{BuiltInFunction, LoxValue, UserFunction},
 };
-use std::{collections::HashMap, error::Error, fmt::Display, sync::{Arc, Mutex}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt::Display,
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 pub struct Interpreter {
-    _globals: Arc<Mutex<Environment>>,
+    globals: Arc<Mutex<Environment>>,
     environment: Arc<Mutex<Environment>>,
     locals: HashMap<Expr, usize>,
 }
@@ -16,18 +22,21 @@ impl Interpreter {
         let globals = Environment::new();
         globals.lock().unwrap().define(
             "clock".into(),
-            LoxValue::BuiltInFunction(BuiltInFunction::new("clock", vec![], |_, _| {
-                Ok(LoxValue::Float(
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .map_err(|_| InterpreterError::Internal)?
-                        .as_millis() as f64,
-                ))
-            }).into()),
+            LoxValue::BuiltInFunction(
+                BuiltInFunction::new("clock", vec![], |_, _| {
+                    Ok(LoxValue::Float(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map_err(|_| InterpreterError::Internal)?
+                            .as_millis() as f64,
+                    ))
+                })
+                .into(),
+            ),
         );
 
         Self {
-            _globals: globals.clone(),
+            globals: globals.clone(),
             environment: globals,
             locals: HashMap::new(),
         }
@@ -48,12 +57,7 @@ impl Interpreter {
     fn evaluate(&mut self, expr: &Expr) -> Result<LoxValue, InterpreterError> {
         match expr {
             Expr::Literal { value } => Ok(value.literal.clone()),
-            Expr::Variable { name } => self
-                .environment
-                .lock()
-                .unwrap()
-                .get(&name.lexeme)
-                .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone())),
+            Expr::Variable { name } => self.look_up_variable(name, expr),
             Expr::Call {
                 callee,
                 paren,
@@ -93,11 +97,19 @@ impl Interpreter {
             }
             Expr::Assign { name, value } => {
                 let value = self.evaluate(value)?;
-                self.environment
-                    .lock()
-                    .unwrap()
-                    .assign(&name.lexeme, value.clone())
-                    .ok_or_else(|| InterpreterError::UndefinedVariable(name.clone()))?;
+                let distance = self.locals.get(expr);
+                if let Some(distance) = distance {
+                    self.environment.lock().unwrap().assign_at(
+                        *distance,
+                        &name.lexeme,
+                        value.clone(),
+                    );
+                } else {
+                    self.globals
+                        .lock()
+                        .unwrap()
+                        .assign(&name.lexeme, value.clone());
+                }
                 Ok(value)
             }
             Expr::Binary {
@@ -185,7 +197,7 @@ impl Interpreter {
                     }
                 } else if !left.is_truthy() {
                     return Ok(left);
-                } 
+                }
                 self.evaluate(right)
             }
         }
@@ -267,6 +279,23 @@ impl Interpreter {
 
     pub fn resolve(&mut self, expr: &Expr, depth: usize) {
         self.locals.insert(expr.clone(), depth);
+    }
+
+    fn look_up_variable(
+        &mut self,
+        name: &Token,
+        expr: &Expr,
+    ) -> Result<LoxValue, InterpreterError> {
+        let distance = self.locals.get(expr);
+        let look_up = if let Some(distance) = distance {
+            self.environment
+                .lock()
+                .unwrap()
+                .get_at(*distance, &name.lexeme)
+        } else {
+            self.globals.lock().unwrap().get(&name.lexeme)
+        };
+        look_up.ok_or_else(|| InterpreterError::UndefinedVariable(name.clone()))
     }
 }
 

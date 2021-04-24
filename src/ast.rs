@@ -1,7 +1,6 @@
 // use lox_derive_ast::make_ast;
 use crate::token::Token;
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Binary {

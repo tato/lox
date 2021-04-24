@@ -1,4 +1,7 @@
-use std::{fmt::{Debug, Display}, sync::{Arc, Mutex}};
+use std::{
+    fmt::{Debug, Display},
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     ast::Stmt,
@@ -87,7 +90,12 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(name: &Token, args: &[Token], body: &[Stmt], closure: Arc<Mutex<Environment>>) -> Self {
+    pub fn new(
+        name: &Token,
+        args: &[Token],
+        body: &[Stmt],
+        closure: Arc<Mutex<Environment>>,
+    ) -> Self {
         Self {
             name: name.clone().into(),
             args: args.to_vec(),

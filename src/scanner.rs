@@ -52,7 +52,7 @@ impl Scanner {
             self.start = self.current;
             self.scan_token()?;
         }
-        self.tokens.push(Token{ 
+        self.tokens.push(Token {
             kind: TokenKind::Eof,
             lexeme: "".into(),
             literal: LoxValue::Nil,
@@ -175,7 +175,13 @@ impl Scanner {
 
     fn add_literal_token(&mut self, kind: TokenKind, literal: LoxValue) {
         let text: String = self.source[self.start..self.current].iter().collect();
-        self.tokens.push(Token{ kind, lexeme: text, literal, line: self.line, scanner_index: self.start });
+        self.tokens.push(Token {
+            kind,
+            lexeme: text,
+            literal,
+            line: self.line,
+            scanner_index: self.start,
+        });
     }
 
     fn string(&mut self) -> Result<(), ErrorInfo> {

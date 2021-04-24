@@ -66,7 +66,7 @@ impl PartialEq for Token {
         self.scanner_index == other.scanner_index
     }
 }
-impl Eq for Token { }
+impl Eq for Token {}
 
 impl Hash for Token {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

@@ -178,7 +178,8 @@ impl Parser {
         } else {
             None
         };
-        let condition_semicolon = self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
+        let condition_semicolon =
+            self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
 
         let increment = if !self.check(TokenKind::RightParen) {
             Some(self.expression()?)
