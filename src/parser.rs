@@ -61,7 +61,7 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+    pub fn parse(mut self) -> Result<Vec<Stmt>, ParserError> {
         let mut statements = vec![];
         while !self.is_at_end() {
             if let Ok(stmt) = self.declaration() {

@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
-use std::collections::hash_map::HashMap;
+use std::{collections::hash_map::HashMap, error::Error, fmt::Display};
 
 use crate::token::{Token, TokenKind};
-use crate::{error::ErrorInfo, value::LoxValue};
+use crate::{value::LoxValue};
 
 lazy_static! {
     static ref RESERVED_WORDS: HashMap<String, TokenKind> = {
@@ -47,7 +47,7 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(mut self) -> Result<Vec<Token>, ErrorInfo> {
+    pub fn scan_tokens(mut self) -> Result<Vec<Token>, ScanError> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token()?;
@@ -66,7 +66,7 @@ impl Scanner {
         self.current >= self.source.len()
     }
 
-    fn scan_token(&mut self) -> Result<(), ErrorInfo> {
+    fn scan_token(&mut self) -> Result<(), ScanError> {
         let c = self.advance();
         match c {
             '(' => self.add_token(TokenKind::LeftParen),
@@ -125,7 +125,7 @@ impl Scanner {
             '"' => self.string()?,
             c if c.is_digit(10) => self.number(),
             c if c == '_' || c.is_alphabetic() => self.identifier(),
-            _ => return Err(ErrorInfo::line(self.line, "Unexpected character")),
+            c => return Err(ScanError::UnexpectedCharacter(c, self.line)),
         }
         Ok(())
     }
@@ -184,7 +184,7 @@ impl Scanner {
         });
     }
 
-    fn string(&mut self) -> Result<(), ErrorInfo> {
+    fn string(&mut self) -> Result<(), ScanError> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -192,7 +192,7 @@ impl Scanner {
             self.advance();
         }
         if self.is_at_end() {
-            return Err(ErrorInfo::line(self.line, "Unterminated string."));
+            return Err(ScanError::UnterminatedString(self.line));
         }
         self.advance();
         let value: String = self.source[self.start + 1..self.current - 1]
@@ -237,3 +237,18 @@ impl Scanner {
         self.add_token(kind);
     }
 }
+
+#[derive(Debug)]
+pub enum ScanError {
+    UnexpectedCharacter(char, usize),
+    UnterminatedString(usize),
+}
+impl Display for ScanError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScanError::UnexpectedCharacter(c, line) => write!(f, "[Line {}] Unexpected character '{}'.", line, c),
+            ScanError::UnterminatedString(line) => write!(f, "[Line {}] Unterminated string.", line),
+        }
+    }
+}
+impl Error for ScanError { }

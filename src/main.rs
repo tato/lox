@@ -2,6 +2,7 @@ use error::ErrorReporter;
 use interpreter::Interpreter;
 use parser::Parser;
 use resolver::Resolver;
+use scanner::Scanner;
 
 mod ast;
 mod environment;
@@ -25,11 +26,8 @@ impl Lox {
     }
 
     pub fn run(&mut self, source: String) -> anyhow::Result<()> {
-        let scanner = scanner::Scanner::new(source);
-        let tokens = scanner.scan_tokens()?;
-
-        let mut parser = Parser::new(tokens);
-        let statements = parser.parse()?;
+        let tokens = Scanner::new(source).scan_tokens()?;
+        let statements = Parser::new(tokens).parse()?;
 
         let mut interpreter = Interpreter::new();
         let mut resolver = Resolver::new(&mut interpreter);
