@@ -2,7 +2,7 @@
 use crate::token::Token;
 use crate::value::LoxValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -38,7 +38,7 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Expression {
         expression: Expr,
@@ -56,6 +56,11 @@ pub enum Stmt {
     },
     Block {
         statements: Vec<Stmt>,
+    },
+    Function {
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Stmt>,
     },
     If {
         condition: Expr,

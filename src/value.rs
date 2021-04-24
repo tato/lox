@@ -1,31 +1,114 @@
 use std::fmt::{Debug, Display};
 
-use crate::interpreter::{Interpreter, InterpreterError};
+use crate::{
+    ast::Stmt,
+    environment::Environment,
+    interpreter::{Interpreter, InterpreterError},
+    token::Token,
+};
+
+pub trait LoxCallable {
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        args: Vec<LoxValue>,
+    ) -> Result<LoxValue, InterpreterError>;
+    fn arity(&self) -> usize;
+}
 
 #[derive(Clone)]
-pub struct LoxFunction {
-    pub callable: fn(&Interpreter, Vec<LoxValue>) -> Result<LoxValue, InterpreterError>,
-    pub args: Vec<String>,
+pub struct BuiltInFunction {
+    name: String,
+    args: Vec<String>,
+    callable: fn(&Interpreter, Vec<LoxValue>) -> Result<LoxValue, InterpreterError>,
 }
-impl Debug for LoxFunction {
+impl Debug for BuiltInFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "fun {}({})", "Unknown", self.args.join(", "))
+        write!(f, "<fun {}({})>", self.name, self.args.join(", "))
     }
 }
-impl PartialEq for LoxFunction {
-    fn eq(&self, _other: &Self) -> bool {
-        false // TODO!
+impl PartialEq for BuiltInFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
-impl LoxFunction {
-    pub fn call(
+impl BuiltInFunction {
+    pub fn new(
+        name: &str,
+        args: Vec<&str>,
+        callable: fn(&Interpreter, Vec<LoxValue>) -> Result<LoxValue, InterpreterError>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            args: args.into_iter().map(str::to_string).collect(),
+            callable,
+        }
+    }
+}
+impl LoxCallable for BuiltInFunction {
+    fn call(
         &self,
-        interpreter: &Interpreter,
+        interpreter: &mut Interpreter,
         args: Vec<LoxValue>,
     ) -> Result<LoxValue, InterpreterError> {
         (self.callable)(interpreter, args)
     }
-    pub fn arity(&self) -> usize {
+    fn arity(&self) -> usize {
+        self.args.len()
+    }
+}
+
+#[derive(Clone)]
+pub struct UserFunction {
+    name: Box<Token>,
+    args: Vec<Token>,
+    body: Vec<Stmt>,
+}
+impl Debug for UserFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<fun {}({})>",
+            self.name.lexeme(),
+            self.args
+                .iter()
+                .map(Token::lexeme)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+impl PartialEq for UserFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name.lexeme() == other.name.lexeme() && self.name.line == other.name.line
+        // TODO! !?
+    }
+}
+impl UserFunction {
+    pub fn new(name: &Token, args: &Vec<Token>, body: &Vec<Stmt>) -> Self {
+        Self {
+            name: name.clone().into(),
+            args: args.clone(),
+            body: body.clone(),
+        }
+    }
+}
+impl LoxCallable for UserFunction {
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        args: Vec<LoxValue>,
+    ) -> Result<LoxValue, InterpreterError> {
+        let environment = Environment::new_child(interpreter.globals.clone());
+        for i in 0..(self.arity().min(args.len())) {
+            environment
+                .borrow_mut()
+                .define(self.args[i].lexeme(), args[i].clone());
+        }
+        interpreter.execute_block(&self.body, environment)?;
+        Ok(LoxValue::Nil)
+    }
+    fn arity(&self) -> usize {
         self.args.len()
     }
 }
@@ -35,7 +118,8 @@ pub enum LoxValue {
     Bool(bool),
     Float(f64),
     Str(String),
-    Callable(LoxFunction),
+    BuiltInFunction(BuiltInFunction),
+    UserFunction(UserFunction),
     Nil,
 }
 impl Display for LoxValue {
@@ -44,7 +128,8 @@ impl Display for LoxValue {
             LoxValue::Bool(x) => write!(f, "{}", x),
             LoxValue::Float(x) => write!(f, "{}", x),
             LoxValue::Str(x) => write!(f, "{}", x),
-            LoxValue::Callable(x) => write!(f, "{:?}", x),
+            LoxValue::BuiltInFunction(x) => write!(f, "{:?}", x),
+            LoxValue::UserFunction(x) => write!(f, "{:?}", x),
             LoxValue::Nil => write!(f, "nil"),
         }
     }
@@ -60,6 +145,13 @@ impl LoxValue {
     }
     pub fn equals(&self, other: &LoxValue) -> bool {
         self == other
+    }
+    pub fn as_callable(&self) -> Option<&dyn LoxCallable> {
+        match self {
+            LoxValue::BuiltInFunction(x) => Some(x),
+            LoxValue::UserFunction(x) => Some(x),
+            _ => None,
+        }
     }
 }
 

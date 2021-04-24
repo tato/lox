@@ -2,7 +2,7 @@ use crate::{
     ast::{Expr, Stmt},
     environment::Environment,
     token::{Token, TokenKind},
-    value::{LoxFunction, LoxValue},
+    value::{BuiltInFunction, LoxValue, UserFunction},
 };
 use std::{
     cell::RefCell,
@@ -13,7 +13,7 @@ use std::{
 };
 
 pub struct Interpreter {
-    _globals: Rc<RefCell<Environment>>,
+    pub globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 impl Interpreter {
@@ -21,23 +21,18 @@ impl Interpreter {
         let globals = Environment::new();
         globals.borrow_mut().define(
             "clock".into(),
-            LoxValue::Callable(LoxFunction {
-                args: vec![],
-                callable: |_: &Interpreter,
-                           _: Vec<LoxValue>|
-                 -> Result<LoxValue, InterpreterError> {
-                    Ok(LoxValue::Float(
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .map_err(|_| InterpreterError::Internal)?
-                            .as_millis() as f64,
-                    ))
-                },
-            }),
+            LoxValue::BuiltInFunction(BuiltInFunction::new("clock", vec![], |_, _| {
+                Ok(LoxValue::Float(
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_err(|_| InterpreterError::Internal)?
+                        .as_millis() as f64,
+                ))
+            })),
         );
 
         Self {
-            _globals: globals.clone(),
+            globals: globals.clone(),
             environment: globals.clone(),
         }
     }
@@ -73,15 +68,15 @@ impl Interpreter {
                     .map(|it| self.evaluate(it))
                     .collect::<Result<Vec<LoxValue>, InterpreterError>>()?;
 
-                if let LoxValue::Callable(fun) = &callee {
-                    if arguments.len() != fun.arity() {
+                if let Some(callable) = callee.as_callable() {
+                    if arguments.len() != callable.arity() {
                         Err(InterpreterError::FunctionArity(
                             paren.clone(),
-                            fun.arity(),
+                            callable.arity(),
                             arguments.len(),
                         ))
                     } else {
-                        fun.call(self, arguments)
+                        callable.call(self, arguments)
                     }
                 } else {
                     Err(InterpreterError::NotCallable(callee))
@@ -186,17 +181,13 @@ impl Interpreter {
             } => {
                 let left = self.evaluate(left)?;
 
-                if operator.kind == TokenKind::Or {
-                    if left.is_truthy() {
-                        return Ok(left);
-                    }
+                if operator.kind == TokenKind::Or && left.is_truthy() {
+                    Ok(left)
+                } else if !left.is_truthy() {
+                    Ok(left)
                 } else {
-                    if !left.is_truthy() {
-                        return Ok(left);
-                    }
+                    self.evaluate(right)
                 }
-
-                self.evaluate(right)
             }
         }
     }
@@ -237,11 +228,17 @@ impl Interpreter {
                     self.execute(body)?;
                 }
             }
+            Stmt::Function { name, params, body } => {
+                let function = UserFunction::new(name, params, body);
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme(), LoxValue::UserFunction(function));
+            }
         };
         Ok(())
     }
 
-    fn execute_block(
+    pub fn execute_block(
         &mut self,
         statements: &Vec<Stmt>,
         environment: Rc<RefCell<Environment>>,
