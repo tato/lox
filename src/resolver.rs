@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{Expr, Stmt},
+    ast::{Expr, FunctionStmt, Stmt},
     interpreter::Interpreter,
     token::Token,
 };
@@ -40,10 +40,10 @@ impl<'interp> Resolver<'interp> {
                 }
                 self.define(name);
             }
-            Stmt::Function { name, params, body } => {
-                self.declare(name);
-                self.define(name);
-                self.resolve_function(name, params, body, FunctionType::Function);
+            Stmt::Function(fun) => {
+                self.declare(&fun.name);
+                self.define(&fun.name);
+                self.resolve_function(fun, FunctionType::Function);
             }
             Stmt::Expression { expression } => {
                 self.resolve_expr(expression);
@@ -74,9 +74,15 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_expr(condition);
                 self.resolve_stmt(body);
             }
-            Stmt::Class { name, .. } => {
+            Stmt::Class { name, methods } => {
                 self.declare(name);
                 self.define(name);
+                for method in methods {
+                    self.resolve_function(
+                        method,
+                        FunctionType::Method,
+                    );
+                }
             }
         }
     }
@@ -141,20 +147,18 @@ impl<'interp> Resolver<'interp> {
 
     fn resolve_function(
         &mut self,
-        _name: &Token,
-        params: &[Token],
-        body: &[Stmt],
+        fun: &FunctionStmt,
         kind: FunctionType,
     ) {
         let enclosing_function = self.current_function;
         self.current_function = kind;
 
         self.begin_scope();
-        for param in params {
+        for param in &fun.params {
             self.declare(param);
             self.define(param);
         }
-        self.resolve(body);
+        self.resolve(&fun.body);
         self.end_scope();
 
         self.current_function = enclosing_function;
@@ -188,4 +192,5 @@ impl<'interp> Resolver<'interp> {
 enum FunctionType {
     None,
     Function,
+    Method,
 }

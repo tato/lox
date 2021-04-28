@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use crate::{
-    ast::{Expr, Stmt},
+    ast::{Expr, FunctionStmt, Stmt},
     token::{Token, TokenKind},
     value::RuntimeValue,
 };
@@ -75,7 +75,7 @@ impl Parser {
         let stmt = if self.exact(&[TokenKind::Class]) {
             self.class_declaration()
         } else if self.exact(&[TokenKind::Fun]) {
-            self.function("function")
+            Ok(Stmt::Function(self.function("function")?))
         } else if self.exact(&[TokenKind::Var]) {
             self.var_declaration()
         } else {
@@ -261,7 +261,7 @@ impl Parser {
         Ok(Stmt::Expression { expression: expr })
     }
 
-    fn function(&mut self, kind: &str) -> Result<Stmt, ParserError> {
+    fn function(&mut self, kind: &str) -> Result<FunctionStmt, ParserError> {
         let name = self.consume(TokenKind::Identifier, &format!("Expect {} name.", kind))?;
         self.consume(
             TokenKind::LeftParen,
@@ -289,7 +289,7 @@ impl Parser {
             &format!("Expect '{{' before {} body.", kind),
         )?;
         let body = self.block()?;
-        Ok(Stmt::Function {
+        Ok(FunctionStmt {
             name,
             params: parameters,
             body,
@@ -312,8 +312,12 @@ impl Parser {
                     name,
                     value: Box::new(value),
                 })
-            } else if let Expr::Get{ name, object } = expr {
-                Ok(Expr::Set{ name, object, value: value.into() })
+            } else if let Expr::Get { name, object } = expr {
+                Ok(Expr::Set {
+                    name,
+                    object,
+                    value: value.into(),
+                })
             } else {
                 Err(ParserError {
                     token: equals,
@@ -441,8 +445,12 @@ impl Parser {
             if self.exact(&[TokenKind::LeftParen]) {
                 expr = self.finish_call(expr)?;
             } else if self.exact(&[TokenKind::Dot]) {
-                let name = self.consume(TokenKind::Identifier, "Expect property name after '.'.")?;
-                expr = Expr::Get{ object: expr.into(), name };
+                let name =
+                    self.consume(TokenKind::Identifier, "Expect property name after '.'.")?;
+                expr = Expr::Get {
+                    object: expr.into(),
+                    name,
+                };
             } else {
                 break;
             }

@@ -1,4 +1,3 @@
-use error::ErrorReporter;
 use interpreter::Interpreter;
 use parser::Parser;
 use resolver::Resolver;
@@ -6,7 +5,6 @@ use scanner::Scanner;
 
 mod ast;
 mod environment;
-mod error;
 mod interpreter;
 mod parser;
 mod resolver;
@@ -15,13 +13,11 @@ mod token;
 mod value;
 
 struct Lox {
-    _reporter: ErrorReporter,
 }
 
 impl Lox {
     pub fn new() -> Self {
         Self {
-            _reporter: ErrorReporter::new(),
         }
     }
 

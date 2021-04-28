@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
-    sync::{Arc},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -86,12 +86,18 @@ impl Interpreter {
             Expr::Get { object, name } => {
                 let object = self.evaluate(object)?;
                 if let RuntimeValue::Instance(instance) = object {
-                    instance.get(name).ok_or_else(|| InterpreterError::UndefinedProperty(name.clone()))
+                    instance
+                        .get(name)
+                        .ok_or_else(|| InterpreterError::UndefinedProperty(name.clone()))
                 } else {
                     Err(InterpreterError::MustAccessValueOnInstances)
                 }
             }
-            Expr::Set { name, object, value } => {
+            Expr::Set {
+                name,
+                object,
+                value,
+            } => {
                 let object = self.evaluate(object)?;
                 if let RuntimeValue::Instance(instance) = object {
                     let value = self.evaluate(value)?;
@@ -117,14 +123,10 @@ impl Interpreter {
                 let value = self.evaluate(value)?;
                 let distance = self.locals.get(expr);
                 if let Some(distance) = distance {
-                    self.environment.assign_at(
-                        *distance,
-                        &name.lexeme,
-                        value.clone(),
-                    );
+                    self.environment
+                        .assign_at(*distance, &name.lexeme, value.clone());
                 } else {
-                    self.globals
-                        .assign(&name.lexeme, value.clone());
+                    self.globals.assign(&name.lexeme, value.clone());
                 }
                 Ok(value)
             }
@@ -265,15 +267,21 @@ impl Interpreter {
                     self.execute(body)?;
                 }
             }
-            Stmt::Function { name, params, body } => {
-                let function = UserFunction::new(name, params, body, self.environment.clone());
+            Stmt::Function(fun) => {
+                let function = UserFunction::new(fun, self.environment.clone());
                 self.environment
-                    .define(&name.lexeme, RuntimeValue::UserFunction(function.into()));
+                    .define(&fun.name.lexeme, RuntimeValue::UserFunction(function.into()));
             }
             Stmt::Class { name, methods } => {
-                self.environment
-                    .define(&name.lexeme, RuntimeValue::Nil);
-                let class = RuntimeValue::Class(ClassDefinition::new(name).into());
+                self.environment.define(&name.lexeme, RuntimeValue::Nil);
+
+                let mut class_methods = HashMap::new();
+                for method in methods {
+                    let function = UserFunction::new(method, self.environment.clone());
+                    class_methods.insert(method.name.lexeme.clone(), function.into());
+                }
+
+                let class = RuntimeValue::Class(ClassDefinition::new(name, class_methods).into());
                 self.environment.assign(&name.lexeme, class);
             }
         };
@@ -310,8 +318,7 @@ impl Interpreter {
     ) -> Result<RuntimeValue, InterpreterError> {
         let distance = self.locals.get(expr);
         let look_up = if let Some(distance) = distance {
-            self.environment
-                .get_at(*distance, &name.lexeme)
+            self.environment.get_at(*distance, &name.lexeme)
         } else {
             self.globals.get(&name.lexeme)
         };
@@ -345,8 +352,9 @@ impl Display for InterpreterError {
             InterpreterError::OperandsMustBeNumbersOrStr => {
                 write!(f, "Operands must be numbers or strings.")
             }
-            InterpreterError::UndefinedProperty(tok) =>
-                write!(f, "Undefined property '{}'.", tok.lexeme),
+            InterpreterError::UndefinedProperty(tok) => {
+                write!(f, "Undefined property '{}'.", tok.lexeme)
+            }
             InterpreterError::UndefinedVariable(tok) => {
                 write!(f, "Undefined variable '{}'.", tok.lexeme)
             }
@@ -356,8 +364,9 @@ impl Display for InterpreterError {
             InterpreterError::FunctionArity(_at, expected, got) => {
                 write!(f, "Expected {} arguments but got {}.", expected, got)
             }
-            InterpreterError::MustAccessValueOnInstances =>
-                write!(f, "Only instances have properties."),
+            InterpreterError::MustAccessValueOnInstances => {
+                write!(f, "Only instances have properties.")
+            }
             InterpreterError::Return(_) => write!(f, "INTERNAL ERROR: Return was not caught."),
         }
     }

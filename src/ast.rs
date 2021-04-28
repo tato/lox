@@ -31,7 +31,7 @@ pub enum Expr {
     Set {
         object: Box<Expr>,
         name: Token,
-        value: Box<Expr>
+        value: Box<Expr>,
     },
     Unary {
         operator: Token,
@@ -44,6 +44,13 @@ pub enum Expr {
         name: Token,
         value: Box<Expr>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionStmt {
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,13 +78,9 @@ pub enum Stmt {
     },
     Class {
         name: Token,
-        methods: Vec<Stmt>,
+        methods: Vec<FunctionStmt>,
     },
-    Function {
-        name: Token,
-        params: Vec<Token>,
-        body: Vec<Stmt>,
-    },
+    Function(FunctionStmt),
     If {
         condition: Expr,
         then_branch: Box<Stmt>,

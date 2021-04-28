@@ -1,11 +1,10 @@
-use std::{collections::{HashMap, HashSet}, fmt::{Debug, Display}, sync::{Arc, Mutex}};
-
-use crate::{
-    ast::Stmt,
-    environment::Environment,
-    interpreter::{Interpreter, InterpreterError},
-    token::Token,
+use std::{
+    collections::{HashMap},
+    fmt::{Debug, Display},
+    sync::{Arc, Mutex},
 };
+
+use crate::{ast::{FunctionStmt, Stmt}, environment::Environment, interpreter::{Interpreter, InterpreterError}, token::Token};
 
 pub trait CallableValue {
     fn call(
@@ -103,16 +102,11 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(
-        name: &Token,
-        args: &[Token],
-        body: &[Stmt],
-        closure: Arc<Environment>,
-    ) -> Self {
+    pub fn new(fun: &FunctionStmt, closure: Arc<Environment>) -> Self {
         Self {
-            name: name.clone().into(),
-            args: args.to_vec(),
-            body: body.to_vec(),
+            name: fun.name.clone().into(),
+            args: fun.params.to_vec(),
+            body: fun.body.to_vec(),
             closure,
         }
     }
@@ -125,8 +119,7 @@ impl CallableValue for UserFunction {
     ) -> Result<RuntimeValue, InterpreterError> {
         let environment = Environment::new_child(self.closure.clone());
         for (arg, arg_value) in self.args.iter().zip(&args) {
-            environment
-                .define(&arg.lexeme, arg_value.clone());
+            environment.define(&arg.lexeme, arg_value.clone());
         }
         if let Err(e) = interpreter.execute_block(&self.body, environment) {
             match e {
@@ -142,10 +135,10 @@ impl CallableValue for UserFunction {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ClassDefinition {
     name: Token,
+    methods: HashMap<String, Arc<UserFunction>>,
 }
 impl Display for ClassDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -172,8 +165,11 @@ impl CallableValue for ClassDefinition {
     }
 }
 impl ClassDefinition {
-    pub fn new(name: &Token) -> Self {
-        Self { name: name.clone() }
+    pub fn new(name: &Token, methods: HashMap<String, Arc<UserFunction>>) -> Self {
+        Self { name: name.clone(), methods }
+    }
+    pub fn find_method(&self, name: &str) -> Option<RuntimeValue> {
+        self.methods.get(name).cloned().map(RuntimeValue::UserFunction)
     }
 }
 
@@ -185,10 +181,16 @@ pub struct ClassInstance {
 impl Display for ClassInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
-            f, 
+            f,
             "instance {}({})",
             &self.class.name.lexeme,
-            self.fields.lock().unwrap().keys().cloned().collect::<Vec<String>>().join(", ")
+            self.fields
+                .lock()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>()
+                .join(", ")
         )
     }
 }
@@ -207,13 +209,22 @@ impl ClassInstance {
         }
     }
     pub fn get(&self, name: &Token) -> Option<RuntimeValue> {
-        self.fields.lock().unwrap().get(&name.lexeme).cloned()
+        let field = self.fields.lock().unwrap().get(&name.lexeme).cloned();
+        match field {
+            Some(_) => field,
+            None => {
+                let method = self.class.find_method(&name.lexeme);
+                method
+            }
+        }
     }
     pub fn set(&self, name: &Token, value: RuntimeValue) {
-        self.fields.lock().unwrap().insert(name.lexeme.clone(), value);
+        self.fields
+            .lock()
+            .unwrap()
+            .insert(name.lexeme.clone(), value);
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
