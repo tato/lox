@@ -269,7 +269,21 @@ impl Interpreter {
                 self.environment
                     .define(&fun.name.lexeme, RuntimeValue::UserFunction(function));
             }
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                superclass,
+                methods,
+            } => {
+                let superclass = if let Some(sc) = superclass {
+                    let result = self.evaluate(&Expr::Variable { name: sc.clone() })?;
+                    match result {
+                        RuntimeValue::Class(cd) => Some(cd),
+                        _ => return Err(InterpreterError::SuperClassMustBeClass(sc.clone())),
+                    }
+                } else {
+                    None
+                };
+
                 self.environment.define(&name.lexeme, RuntimeValue::Nil);
 
                 let mut class_methods = HashMap::new();
@@ -279,7 +293,8 @@ impl Interpreter {
                     class_methods.insert(method.name.lexeme.clone(), function);
                 }
 
-                let class = RuntimeValue::Class(ClassDefinition::new(name, class_methods));
+                let class =
+                    RuntimeValue::Class(ClassDefinition::new(name, superclass, class_methods));
                 self.environment.assign(&name.lexeme, class);
             }
         };
@@ -335,6 +350,7 @@ pub enum InterpreterError {
     NotCallable(RuntimeValue),
     FunctionArity(Token, usize, usize),
     MustAccessValueOnInstances,
+    SuperClassMustBeClass(Token),
     Return(RuntimeValue),
 }
 impl Display for InterpreterError {
@@ -364,6 +380,9 @@ impl Display for InterpreterError {
             }
             InterpreterError::MustAccessValueOnInstances => {
                 write!(f, "Only instances have properties.")
+            }
+            InterpreterError::SuperClassMustBeClass(tok) => {
+                write!(f, "Superclass '{}' must be class.", tok.lexeme)
             }
             InterpreterError::Return(_) => write!(f, "INTERNAL ERROR: Return was not caught."),
         }

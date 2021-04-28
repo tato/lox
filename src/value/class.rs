@@ -14,6 +14,7 @@ use super::{CallableValue, RuntimeValue, UserFunction};
 #[derive(Debug)]
 pub struct ClassDefinitionStorage {
     name: Token,
+    superclass: Option<ClassDefinition>,
     methods: HashMap<String, UserFunction>,
 }
 #[derive(Debug, Clone)]
@@ -49,17 +50,27 @@ impl CallableValue for ClassDefinition {
     }
 }
 impl ClassDefinition {
-    pub fn new(name: &Token, methods: HashMap<String, UserFunction>) -> Self {
+    pub fn new(
+        name: &Token,
+        superclass: Option<ClassDefinition>,
+        methods: HashMap<String, UserFunction>,
+    ) -> Self {
         Self(
             ClassDefinitionStorage {
                 name: name.clone(),
+                superclass,
                 methods,
             }
             .into(),
         )
     }
     pub fn find_method(&self, name: &str) -> Option<UserFunction> {
-        self.0.methods.get(name).cloned()
+        let self_method = self.0.methods.get(name).cloned();
+        match (&self_method, &self.0.superclass) {
+            (Some(_), _) => self_method,
+            (None, Some(sc)) => sc.find_method(name),
+            (None, None) => None,
+        }
     }
 }
 #[derive(Debug)]

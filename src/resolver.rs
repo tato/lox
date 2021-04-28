@@ -79,12 +79,26 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_expr(condition);
                 self.resolve_stmt(body);
             }
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                superclass,
+                methods,
+            } => {
                 let enclosing_class = self.current_class;
                 self.current_class = ClassType::Class;
 
                 self.declare(name);
                 self.define(name);
+
+                if let Some(superclass) = superclass {
+                    if name.lexeme == superclass.lexeme {
+                        todo!("A class can't inherit from itself.");
+                    }
+                    self.resolve_expr(&Expr::Variable {
+                        name: superclass.clone(),
+                    });
+                }
+
                 self.begin_scope();
                 self.scopes.last_mut().unwrap().insert("this".into(), true);
                 for method in methods {
