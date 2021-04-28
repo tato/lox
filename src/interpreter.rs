@@ -8,19 +8,19 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
-    sync::{Arc, Mutex},
+    sync::{Arc},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 pub struct Interpreter {
-    globals: Arc<Mutex<Environment>>,
-    environment: Arc<Mutex<Environment>>,
+    globals: Arc<Environment>,
+    environment: Arc<Environment>,
     locals: HashMap<Expr, usize>,
 }
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Environment::new();
-        globals.lock().unwrap().define(
+        globals.define(
             "clock".into(),
             RuntimeValue::BuiltInFunction(
                 BuiltInFunction::new("clock", vec![], |_, _| {
@@ -88,7 +88,17 @@ impl Interpreter {
                 if let RuntimeValue::Instance(instance) = object {
                     instance.get(name).ok_or_else(|| InterpreterError::UndefinedProperty(name.clone()))
                 } else {
-                    Err(InterpreterError::GetValueMustBeInstance)
+                    Err(InterpreterError::MustAccessValueOnInstances)
+                }
+            }
+            Expr::Set { name, object, value } => {
+                let object = self.evaluate(object)?;
+                if let RuntimeValue::Instance(instance) = object {
+                    let value = self.evaluate(value)?;
+                    instance.set(name, value.clone());
+                    Ok(value)
+                } else {
+                    Err(InterpreterError::MustAccessValueOnInstances)
                 }
             }
             Expr::Grouping { expression } => self.evaluate(expression),
@@ -107,15 +117,13 @@ impl Interpreter {
                 let value = self.evaluate(value)?;
                 let distance = self.locals.get(expr);
                 if let Some(distance) = distance {
-                    self.environment.lock().unwrap().assign_at(
+                    self.environment.assign_at(
                         *distance,
                         &name.lexeme,
                         value.clone(),
                     );
                 } else {
                     self.globals
-                        .lock()
-                        .unwrap()
                         .assign(&name.lexeme, value.clone());
                 }
                 Ok(value)
@@ -236,7 +244,7 @@ impl Interpreter {
                 } else {
                     RuntimeValue::Nil
                 };
-                self.environment.lock().unwrap().define(&name.lexeme, value);
+                self.environment.define(&name.lexeme, value);
             }
             Stmt::Block { statements } => {
                 self.execute_block(statements, Environment::new_child(self.environment.clone()))?;
@@ -260,17 +268,13 @@ impl Interpreter {
             Stmt::Function { name, params, body } => {
                 let function = UserFunction::new(name, params, body, self.environment.clone());
                 self.environment
-                    .lock()
-                    .unwrap()
                     .define(&name.lexeme, RuntimeValue::UserFunction(function.into()));
             }
             Stmt::Class { name, methods } => {
                 self.environment
-                    .lock()
-                    .unwrap()
                     .define(&name.lexeme, RuntimeValue::Nil);
                 let class = RuntimeValue::Class(ClassDefinition::new(name).into());
-                self.environment.lock().unwrap().assign(&name.lexeme, class);
+                self.environment.assign(&name.lexeme, class);
             }
         };
         Ok(())
@@ -279,7 +283,7 @@ impl Interpreter {
     pub fn execute_block(
         &mut self,
         statements: &[Stmt],
-        environment: Arc<Mutex<Environment>>,
+        environment: Arc<Environment>,
     ) -> Result<(), InterpreterError> {
         let previous = self.environment.clone();
         self.environment = environment;
@@ -307,11 +311,9 @@ impl Interpreter {
         let distance = self.locals.get(expr);
         let look_up = if let Some(distance) = distance {
             self.environment
-                .lock()
-                .unwrap()
                 .get_at(*distance, &name.lexeme)
         } else {
-            self.globals.lock().unwrap().get(&name.lexeme)
+            self.globals.get(&name.lexeme)
         };
         look_up.ok_or_else(|| InterpreterError::UndefinedVariable(name.clone()))
     }
@@ -327,7 +329,7 @@ pub enum InterpreterError {
     UndefinedProperty(Token),
     NotCallable(RuntimeValue),
     FunctionArity(Token, usize, usize),
-    GetValueMustBeInstance,
+    MustAccessValueOnInstances,
     Return(RuntimeValue),
 }
 impl Display for InterpreterError {
@@ -354,7 +356,7 @@ impl Display for InterpreterError {
             InterpreterError::FunctionArity(_at, expected, got) => {
                 write!(f, "Expected {} arguments but got {}.", expected, got)
             }
-            InterpreterError::GetValueMustBeInstance =>
+            InterpreterError::MustAccessValueOnInstances =>
                 write!(f, "Only instances have properties."),
             InterpreterError::Return(_) => write!(f, "INTERNAL ERROR: Return was not caught."),
         }

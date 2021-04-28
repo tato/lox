@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
+use std::{collections::{HashMap, HashSet}, fmt::{Debug, Display}, sync::{Arc, Mutex}};
 
 use crate::{
     ast::Stmt,
@@ -71,7 +71,7 @@ pub struct UserFunction {
     name: Token,
     args: Vec<Token>,
     body: Vec<Stmt>,
-    closure: Arc<Mutex<Environment>>,
+    closure: Arc<Environment>,
 }
 impl Debug for UserFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -107,7 +107,7 @@ impl UserFunction {
         name: &Token,
         args: &[Token],
         body: &[Stmt],
-        closure: Arc<Mutex<Environment>>,
+        closure: Arc<Environment>,
     ) -> Self {
         Self {
             name: name.clone().into(),
@@ -126,8 +126,6 @@ impl CallableValue for UserFunction {
         let environment = Environment::new_child(self.closure.clone());
         for (arg, arg_value) in self.args.iter().zip(&args) {
             environment
-                .lock()
-                .unwrap()
                 .define(&arg.lexeme, arg_value.clone());
         }
         if let Err(e) = interpreter.execute_block(&self.body, environment) {
@@ -179,19 +177,26 @@ impl ClassDefinition {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ClassInstance {
-    class: Box<ClassDefinition>, // TODO!
-    fields: HashMap<String, RuntimeValue>, // TODO! IDK WHATEVER XD
+    class: Arc<ClassDefinition>,
+    fields: Mutex<HashMap<String, RuntimeValue>>,
 }
 impl Display for ClassInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(
+            f, 
+            "instance {}({})",
+            &self.class.name.lexeme,
+            self.fields.lock().unwrap().keys().cloned().collect::<Vec<String>>().join(", ")
+        )
     }
 }
 impl PartialEq for ClassInstance {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        let map: &HashMap<String, RuntimeValue> = &self.fields.lock().unwrap();
+        let other_map: &HashMap<String, RuntimeValue> = &other.fields.lock().unwrap();
+        self.class == other.class && map == other_map
     }
 }
 impl ClassInstance {
@@ -202,7 +207,10 @@ impl ClassInstance {
         }
     }
     pub fn get(&self, name: &Token) -> Option<RuntimeValue> {
-        self.fields.get(&name.lexeme).cloned()
+        self.fields.lock().unwrap().get(&name.lexeme).cloned()
+    }
+    pub fn set(&self, name: &Token, value: RuntimeValue) {
+        self.fields.lock().unwrap().insert(name.lexeme.clone(), value);
     }
 }
 

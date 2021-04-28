@@ -6,62 +6,63 @@ use std::{
 use crate::value::RuntimeValue;
 
 pub struct Environment {
-    values: HashMap<String, RuntimeValue>,
-    enclosing: Option<Arc<Mutex<Environment>>>,
+    values: Mutex<HashMap<String, RuntimeValue>>,
+    enclosing: Option<Arc<Environment>>,
 }
 
 impl Environment {
-    pub fn new() -> Arc<Mutex<Self>> {
+    pub fn new() -> Arc<Self> {
         Arc::new(
             Self {
-                values: HashMap::new(),
+                values: HashMap::new().into(),
                 enclosing: None,
             }
             .into(),
         )
     }
-    pub fn new_child(enclosing: Arc<Mutex<Environment>>) -> Arc<Mutex<Self>> {
+    pub fn new_child(enclosing: Arc<Environment>) -> Arc<Self> {
         Arc::new(
             Self {
-                values: HashMap::new(),
+                values: HashMap::new().into(),
                 enclosing: Some(enclosing),
             }
             .into(),
         )
     }
-    pub fn define(&mut self, name: &str, value: RuntimeValue) {
-        self.values.insert(name.to_string(), value);
+    pub fn define(&self, name: &str, value: RuntimeValue) {
+        self.values.lock().unwrap().insert(name.to_string(), value);
     }
-    pub fn assign(&mut self, name: &str, value: RuntimeValue) -> Option<RuntimeValue> {
-        if self.values.contains_key(name) {
-            self.values.insert(name.to_string(), value)
+    pub fn assign(&self, name: &str, value: RuntimeValue) -> Option<RuntimeValue> {
+        let mut values = self.values.lock().unwrap();
+        if values.contains_key(name) {
+            values.insert(name.to_string(), value)
         } else if let Some(enclosing) = &self.enclosing {
-            enclosing.lock().unwrap().assign(name, value)
+            enclosing.assign(name, value)
         } else {
             None
         }
     }
     pub fn assign_at(
-        &mut self,
+        &self,
         distance: usize,
         name: &str,
         value: RuntimeValue,
     ) -> Option<RuntimeValue> {
         if distance > 0 {
             self.ancestor(distance)
+                .values
                 .lock()
                 .unwrap()
-                .values
                 .insert(name.to_string(), value)
         } else {
-            self.values.insert(name.to_string(), value)
+            self.values.lock().unwrap().insert(name.to_string(), value)
         }
     }
     pub fn get(&self, name: &str) -> Option<RuntimeValue> {
-        let mut value = self.values.get(name).cloned();
+        let mut value = self.values.lock().unwrap().get(name).cloned();
         if value.is_none() {
             if let Some(enclosing) = &self.enclosing {
-                value = enclosing.lock().unwrap().get(name);
+                value = enclosing.get(name);
             }
         }
         value
@@ -69,17 +70,17 @@ impl Environment {
     pub fn get_at(&self, distance: usize, name: &str) -> Option<RuntimeValue> {
         if distance > 0 {
             self.ancestor(distance)
+                .values
                 .lock()
                 .unwrap()
-                .values
                 .get(name)
                 .cloned()
         } else {
-            self.values.get(name).cloned()
+            self.values.lock().unwrap().get(name).cloned()
         }
     }
 
-    fn ancestor(&self, distance: usize) -> Arc<Mutex<Environment>> {
+    fn ancestor(&self, distance: usize) -> Arc<Environment> {
         assert!(distance > 0);
         assert!(self.enclosing.is_some());
 
@@ -87,8 +88,7 @@ impl Environment {
         let mut env = self.enclosing.clone();
         for _ in 0..(distance - 1) {
             let some = env.take().unwrap();
-            let locked = some.lock().unwrap();
-            if let Some(enclosing) = locked.enclosing.as_ref() {
+            if let Some(enclosing) = some.enclosing.as_ref() {
                 env = Some(enclosing.clone())
             }
         }

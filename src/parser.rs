@@ -312,6 +312,8 @@ impl Parser {
                     name,
                     value: Box::new(value),
                 })
+            } else if let Expr::Get{ name, object } = expr {
+                Ok(Expr::Set{ name, object, value: value.into() })
             } else {
                 Err(ParserError {
                     token: equals,
