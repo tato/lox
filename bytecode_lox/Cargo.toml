@@ -1,0 +1,9 @@
+[package]
+name = "bytecode_lox"
+version = "0.1.0"
+authors = ["Pablo Tato Ramos <pabtatoramos@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+lox_proc_macros = { path = "../lox_proc_macros" }
+bytemuck = "1.5"
