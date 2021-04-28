@@ -2,7 +2,7 @@ use crate::{
     ast::{Expr, Stmt},
     environment::Environment,
     token::{Token, TokenKind},
-    value::{BuiltInFunction, LoxValue, UserFunction},
+    value::{BuiltInFunction, ClassDefinition, RuntimeValue, UserFunction},
 };
 use std::{
     collections::HashMap,
@@ -22,9 +22,9 @@ impl Interpreter {
         let globals = Environment::new();
         globals.lock().unwrap().define(
             "clock".into(),
-            LoxValue::BuiltInFunction(
+            RuntimeValue::BuiltInFunction(
                 BuiltInFunction::new("clock", vec![], |_, _| {
-                    Ok(LoxValue::Float(
+                    Ok(RuntimeValue::Float(
                         SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .map_err(|_| InterpreterError::Internal)?
@@ -54,7 +54,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate(&mut self, expr: &Expr) -> Result<LoxValue, InterpreterError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<RuntimeValue, InterpreterError> {
         match expr {
             Expr::Literal { value } => Ok(value.literal.clone()),
             Expr::Variable { name } => self.look_up_variable(name, expr),
@@ -67,7 +67,7 @@ impl Interpreter {
                 let arguments = arguments
                     .iter()
                     .map(|it| self.evaluate(it))
-                    .collect::<Result<Vec<LoxValue>, InterpreterError>>()?;
+                    .collect::<Result<Vec<RuntimeValue>, InterpreterError>>()?;
 
                 if let Some(callable) = callee.as_callable() {
                     if arguments.len() != callable.arity() {
@@ -83,15 +83,23 @@ impl Interpreter {
                     Err(InterpreterError::NotCallable(callee))
                 }
             }
+            Expr::Get { object, name } => {
+                let object = self.evaluate(object)?;
+                if let RuntimeValue::Instance(instance) = object {
+                    instance.get(name).ok_or_else(|| InterpreterError::UndefinedProperty(name.clone()))
+                } else {
+                    Err(InterpreterError::GetValueMustBeInstance)
+                }
+            }
             Expr::Grouping { expression } => self.evaluate(expression),
             Expr::Unary { operator, right } => {
                 let right = self.evaluate(right)?;
                 match operator.kind {
                     TokenKind::Minus => match right {
-                        LoxValue::Float(f) => Ok(LoxValue::Float(-f)),
+                        RuntimeValue::Float(f) => Ok(RuntimeValue::Float(-f)),
                         v => Err(InterpreterError::UnaryMinusOperandMustBeNumber(v)),
                     },
-                    TokenKind::Bang => Ok(LoxValue::Bool(!right.is_truthy())),
+                    TokenKind::Bang => Ok(RuntimeValue::Bool(!right.is_truthy())),
                     _ => Err(InterpreterError::Internal),
                 }
             }
@@ -122,65 +130,66 @@ impl Interpreter {
 
                 match operator.kind {
                     TokenKind::Minus => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Float(l - r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Float(l - r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::Slash => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Float(l / r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Float(l / r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::Star => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Float(l * r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Float(l * r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::Plus => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Float(l + r))
-                        } else if let (LoxValue::Str(l), LoxValue::Str(r)) = (&left, &right) {
-                            Ok(LoxValue::Str(l.clone() + r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Float(l + r))
+                        } else if let (RuntimeValue::Str(l), RuntimeValue::Str(r)) = (&left, &right)
+                        {
+                            Ok(RuntimeValue::Str(l.clone() + r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbersOrStr)
                         }
                     }
                     TokenKind::Greater => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Bool(l > r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Bool(l > r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::GreaterEqual => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Bool(l >= r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Bool(l >= r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::Less => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Bool(l < r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Bool(l < r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
                     TokenKind::LessEqual => {
-                        if let (LoxValue::Float(l), LoxValue::Float(r)) = (&left, &right) {
-                            Ok(LoxValue::Bool(l <= r))
+                        if let (RuntimeValue::Float(l), RuntimeValue::Float(r)) = (&left, &right) {
+                            Ok(RuntimeValue::Bool(l <= r))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbers)
                         }
                     }
-                    TokenKind::BangEqual => Ok(LoxValue::Bool(!left.equals(&right))),
-                    TokenKind::EqualEqual => Ok(LoxValue::Bool(left.equals(&right))),
+                    TokenKind::BangEqual => Ok(RuntimeValue::Bool(!left.equals(&right))),
+                    TokenKind::EqualEqual => Ok(RuntimeValue::Bool(left.equals(&right))),
                     _ => Err(InterpreterError::Internal),
                 }
             }
@@ -216,7 +225,7 @@ impl Interpreter {
                 let value = if let Some(v) = value {
                     self.evaluate(v)?
                 } else {
-                    LoxValue::Nil
+                    RuntimeValue::Nil
                 };
                 return Err(InterpreterError::Return(value));
             }
@@ -224,7 +233,7 @@ impl Interpreter {
                 let value = if let Some(expr) = initializer {
                     self.evaluate(expr)?
                 } else {
-                    LoxValue::Nil
+                    RuntimeValue::Nil
                 };
                 self.environment.lock().unwrap().define(&name.lexeme, value);
             }
@@ -252,7 +261,15 @@ impl Interpreter {
                 self.environment
                     .lock()
                     .unwrap()
-                    .define(&name.lexeme, LoxValue::UserFunction(function.into()));
+                    .define(&name.lexeme, RuntimeValue::UserFunction(function.into()));
+            }
+            Stmt::Class { name, methods } => {
+                self.environment
+                    .lock()
+                    .unwrap()
+                    .define(&name.lexeme, RuntimeValue::Nil);
+                let class = RuntimeValue::Class(ClassDefinition::new(name).into());
+                self.environment.lock().unwrap().assign(&name.lexeme, class);
             }
         };
         Ok(())
@@ -285,7 +302,7 @@ impl Interpreter {
         &mut self,
         name: &Token,
         expr: &Expr,
-    ) -> Result<LoxValue, InterpreterError> {
+    ) -> Result<RuntimeValue, InterpreterError> {
         let distance = self.locals.get(expr);
         let look_up = if let Some(distance) = distance {
             self.environment
@@ -302,13 +319,15 @@ impl Interpreter {
 #[derive(Debug)]
 pub enum InterpreterError {
     Internal,
-    UnaryMinusOperandMustBeNumber(LoxValue),
+    UnaryMinusOperandMustBeNumber(RuntimeValue),
     OperandsMustBeNumbers,
     OperandsMustBeNumbersOrStr,
     UndefinedVariable(Token),
-    NotCallable(LoxValue),
+    UndefinedProperty(Token),
+    NotCallable(RuntimeValue),
     FunctionArity(Token, usize, usize),
-    Return(LoxValue),
+    GetValueMustBeInstance,
+    Return(RuntimeValue),
 }
 impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -323,6 +342,8 @@ impl Display for InterpreterError {
             InterpreterError::OperandsMustBeNumbersOrStr => {
                 write!(f, "Operands must be numbers or strings.")
             }
+            InterpreterError::UndefinedProperty(tok) =>
+                write!(f, "Undefined property '{}'.", tok.lexeme),
             InterpreterError::UndefinedVariable(tok) => {
                 write!(f, "Undefined variable '{}'.", tok.lexeme)
             }
@@ -332,6 +353,8 @@ impl Display for InterpreterError {
             InterpreterError::FunctionArity(_at, expected, got) => {
                 write!(f, "Expected {} arguments but got {}.", expected, got)
             }
+            InterpreterError::GetValueMustBeInstance =>
+                write!(f, "Only instances have properties."),
             InterpreterError::Return(_) => write!(f, "INTERNAL ERROR: Return was not caught."),
         }
     }

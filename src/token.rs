@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::value::LoxValue;
+use crate::value::RuntimeValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
@@ -56,7 +56,7 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
-    pub literal: LoxValue,
+    pub literal: RuntimeValue,
     pub line: usize,
     pub scanner_index: usize,
 }

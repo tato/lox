@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display};
 use crate::{
     ast::{Expr, Stmt},
     token::{Token, TokenKind},
-    value::LoxValue,
+    value::RuntimeValue,
 };
 
 pub struct Parser {
@@ -72,7 +72,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParserError> {
-        let stmt = if self.exact(&[TokenKind::Fun]) {
+        let stmt = if self.exact(&[TokenKind::Class]) {
+            self.class_declaration()
+        } else if self.exact(&[TokenKind::Fun]) {
             self.function("function")
         } else if self.exact(&[TokenKind::Var]) {
             self.var_declaration()
@@ -87,6 +89,19 @@ impl Parser {
                 Err(e)
             }
         }
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt, ParserError> {
+        let name = self.consume(TokenKind::Identifier, "Expect class name.")?;
+        self.consume(TokenKind::LeftBrace, "Expect '{' before class body.")?;
+
+        let mut methods = vec![];
+        while !self.check(TokenKind::RightBrace) && !self.is_at_end() {
+            methods.push(self.function("method")?);
+        }
+
+        self.consume(TokenKind::RightBrace, "Expect '}' after class body.")?;
+        Ok(Stmt::Class { name, methods })
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, ParserError> {
@@ -206,7 +221,7 @@ impl Parser {
                 value: Token {
                     kind: TokenKind::True,
                     lexeme: "true".into(),
-                    literal: LoxValue::Bool(true),
+                    literal: RuntimeValue::Bool(true),
                     line: condition_semicolon.line,
                     scanner_index: condition_semicolon.scanner_index,
                 },
@@ -255,12 +270,12 @@ impl Parser {
         let mut parameters = vec![];
         if !self.check(TokenKind::RightParen) {
             loop {
-                // if arguments.len() >= 255 {
-                //     return Err(ParserError{
-                //         token: self.peek(),
-                //         message: "Can't have more than 255 arguments.".into(),
-                //     });
-                // } // TODO! Report but don't print error
+                if parameters.len() >= 255 {
+                    return Err(ParserError {
+                        token: self.peek(),
+                        message: "Can't have more than 255 arguments.".into(),
+                    });
+                } // TODO! Report but don't print error
                 parameters.push(self.consume(TokenKind::Identifier, "Expect parameter name.")?);
                 if !self.exact(&[TokenKind::Comma]) {
                     break;
@@ -423,6 +438,9 @@ impl Parser {
         loop {
             if self.exact(&[TokenKind::LeftParen]) {
                 expr = self.finish_call(expr)?;
+            } else if self.exact(&[TokenKind::Dot]) {
+                let name = self.consume(TokenKind::Identifier, "Expect property name after '.'.")?;
+                expr = Expr::Get{ object: expr.into(), name };
             } else {
                 break;
             }
@@ -434,12 +452,12 @@ impl Parser {
         let mut arguments = vec![];
         if !self.check(TokenKind::RightParen) {
             loop {
-                // if arguments.len() >= 255 {
-                //     return Err(ParserError{
-                //         token: self.peek(),
-                //         message: "Can't have more than 255 arguments.".into(),
-                //     });
-                // } // TODO! Report but don't print error
+                if arguments.len() >= 255 {
+                    return Err(ParserError {
+                        token: self.peek(),
+                        message: "Can't have more than 255 arguments.".into(),
+                    });
+                } // TODO! Report but don't print error
                 arguments.push(self.expression()?);
                 if !self.exact(&[TokenKind::Comma]) {
                     break;

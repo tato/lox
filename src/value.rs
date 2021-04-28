@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
 
 use crate::{
     ast::Stmt,
@@ -10,12 +7,12 @@ use crate::{
     token::Token,
 };
 
-pub trait LoxCallable {
+pub trait CallableValue {
     fn call(
         &self,
         interpreter: &mut Interpreter,
-        args: Vec<LoxValue>,
-    ) -> Result<LoxValue, InterpreterError>;
+        args: Vec<RuntimeValue>,
+    ) -> Result<RuntimeValue, InterpreterError>;
     fn arity(&self) -> usize;
 }
 
@@ -23,9 +20,18 @@ pub trait LoxCallable {
 pub struct BuiltInFunction {
     name: String,
     args: Vec<String>,
-    callable: fn(&Interpreter, Vec<LoxValue>) -> Result<LoxValue, InterpreterError>,
+    callable: fn(&Interpreter, Vec<RuntimeValue>) -> Result<RuntimeValue, InterpreterError>,
 }
 impl Debug for BuiltInFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BuiltInFunction{{ name: {:?}, args: {:?}, callable: ?? }}",
+            self.name, self.args
+        )
+    }
+}
+impl Display for BuiltInFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<fun {}({})>", self.name, self.args.join(", "))
     }
@@ -39,7 +45,7 @@ impl BuiltInFunction {
     pub fn new(
         name: &str,
         args: Vec<&str>,
-        callable: fn(&Interpreter, Vec<LoxValue>) -> Result<LoxValue, InterpreterError>,
+        callable: fn(&Interpreter, Vec<RuntimeValue>) -> Result<RuntimeValue, InterpreterError>,
     ) -> Self {
         Self {
             name: name.into(),
@@ -48,12 +54,12 @@ impl BuiltInFunction {
         }
     }
 }
-impl LoxCallable for BuiltInFunction {
+impl CallableValue for BuiltInFunction {
     fn call(
         &self,
         interpreter: &mut Interpreter,
-        args: Vec<LoxValue>,
-    ) -> Result<LoxValue, InterpreterError> {
+        args: Vec<RuntimeValue>,
+    ) -> Result<RuntimeValue, InterpreterError> {
         (self.callable)(interpreter, args)
     }
     fn arity(&self) -> usize {
@@ -63,12 +69,21 @@ impl LoxCallable for BuiltInFunction {
 
 #[derive(Clone)]
 pub struct UserFunction {
-    name: Box<Token>,
+    name: Token,
     args: Vec<Token>,
     body: Vec<Stmt>,
     closure: Arc<Mutex<Environment>>,
 }
 impl Debug for UserFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "UserFunction{{ name: {:?}, args: {:?}, body: {:?}, closure: ?? }}",
+            self.name, self.args, self.body
+        )
+    }
+}
+impl Display for UserFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -85,8 +100,7 @@ impl Debug for UserFunction {
 }
 impl PartialEq for UserFunction {
     fn eq(&self, other: &Self) -> bool {
-        self.name.lexeme == other.name.lexeme && self.name.line == other.name.line
-        // TODO! !?
+        self.name == other.name
     }
 }
 impl UserFunction {
@@ -104,12 +118,12 @@ impl UserFunction {
         }
     }
 }
-impl LoxCallable for UserFunction {
+impl CallableValue for UserFunction {
     fn call(
         &self,
         interpreter: &mut Interpreter,
-        args: Vec<LoxValue>,
-    ) -> Result<LoxValue, InterpreterError> {
+        args: Vec<RuntimeValue>,
+    ) -> Result<RuntimeValue, InterpreterError> {
         let environment = Environment::new_child(self.closure.clone());
         for (arg, arg_value) in self.args.iter().zip(&args) {
             environment
@@ -123,7 +137,7 @@ impl LoxCallable for UserFunction {
                 e => Err(e),
             }
         } else {
-            Ok(LoxValue::Nil)
+            Ok(RuntimeValue::Nil)
         }
     }
     fn arity(&self) -> usize {
@@ -131,51 +145,111 @@ impl LoxCallable for UserFunction {
     }
 }
 
+
+#[derive(Debug, Clone)]
+pub struct ClassDefinition {
+    name: Token,
+}
+impl Display for ClassDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<class {}>", self.name.lexeme)
+    }
+}
+impl PartialEq for ClassDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+impl CallableValue for ClassDefinition {
+    fn call(
+        &self,
+        _: &mut Interpreter,
+        _: Vec<RuntimeValue>,
+    ) -> Result<RuntimeValue, InterpreterError> {
+        let instance = ClassInstance::new(self);
+        Ok(RuntimeValue::Instance(instance.into()))
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+}
+impl ClassDefinition {
+    pub fn new(name: &Token) -> Self {
+        Self { name: name.clone() }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassInstance {
+    class: Box<ClassDefinition>, // TODO!
+    fields: Rc<HashMap<String, RuntimeValue>>, // TODO! IDK WHATEVER XD
+}
+impl Display for ClassInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+impl PartialEq for ClassInstance {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
+}
+impl ClassInstance {
+    pub fn new(class: &ClassDefinition) -> Self {
+        Self {
+            class: class.clone().into(),
+            fields: HashMap::new().into(),
+        }
+    }
+    pub fn get(&self, name: &Token) -> Option<RuntimeValue> {
+        self.fields.get(&name.lexeme).cloned()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum LoxValue {
+pub enum RuntimeValue {
     Bool(bool),
     Float(f64),
     Str(String),
     BuiltInFunction(Box<BuiltInFunction>),
     UserFunction(Box<UserFunction>),
+    Class(Box<ClassDefinition>),
+    Instance(Box<ClassInstance>),
     Nil,
 }
-impl Display for LoxValue {
+impl Display for RuntimeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoxValue::Bool(x) => write!(f, "{}", x),
-            LoxValue::Float(x) => write!(f, "{}", x),
-            LoxValue::Str(x) => write!(f, "{}", x),
-            LoxValue::BuiltInFunction(x) => write!(f, "{:?}", x),
-            LoxValue::UserFunction(x) => write!(f, "{:?}", x),
-            LoxValue::Nil => write!(f, "nil"),
+            RuntimeValue::Bool(x) => write!(f, "{}", x),
+            RuntimeValue::Float(x) => write!(f, "{}", x),
+            RuntimeValue::Str(x) => write!(f, "{}", x),
+            RuntimeValue::BuiltInFunction(x) => write!(f, "{}", x),
+            RuntimeValue::UserFunction(x) => write!(f, "{}", x),
+            RuntimeValue::Class(x) => write!(f, "{}", x),
+            RuntimeValue::Instance(x) => write!(f, "{}", x),
+            RuntimeValue::Nil => write!(f, "nil"),
         }
     }
 }
 
-impl LoxValue {
+impl RuntimeValue {
     pub fn is_truthy(&self) -> bool {
         match self {
-            LoxValue::Bool(v) => *v,
-            LoxValue::Nil => false,
+            RuntimeValue::Bool(v) => *v,
+            RuntimeValue::Nil => false,
             _ => true,
         }
     }
-    pub fn equals(&self, other: &LoxValue) -> bool {
+    pub fn equals(&self, other: &RuntimeValue) -> bool {
         self == other
     }
-    pub fn as_callable(&self) -> Option<&dyn LoxCallable> {
+    pub fn as_callable(&self) -> Option<&dyn CallableValue> {
         match self {
-            LoxValue::BuiltInFunction(x) => Some(x.as_ref()),
-            LoxValue::UserFunction(x) => Some(x.as_ref()),
+            RuntimeValue::BuiltInFunction(x) => Some(x.as_ref()),
+            RuntimeValue::UserFunction(x) => Some(x.as_ref()),
+            RuntimeValue::Class(x) => Some(x.as_ref()),
             _ => None,
         }
     }
 }
-
-// pub struct LoxCallable {
-// }
-// impl LoxCallable {
-//     pub fn call(&self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> LoxValue {
-//     }
-// }

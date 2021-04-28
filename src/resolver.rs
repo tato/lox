@@ -74,6 +74,10 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_expr(condition);
                 self.resolve_stmt(body);
             }
+            Stmt::Class { name, .. } => {
+                self.declare(name);
+                self.define(name);
+            }
         }
     }
 
@@ -99,6 +103,9 @@ impl<'interp> Resolver<'interp> {
                 for argument in arguments {
                     self.resolve_expr(argument);
                 }
+            }
+            Expr::Get { object, .. } => {
+                self.resolve_expr(object);
             }
             Expr::Grouping { expression } => {
                 self.resolve_expr(expression);

@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::value::LoxValue;
+use crate::value::RuntimeValue;
 
 pub struct Environment {
-    values: HashMap<String, LoxValue>,
+    values: HashMap<String, RuntimeValue>,
     enclosing: Option<Arc<Mutex<Environment>>>,
 }
 
@@ -29,10 +29,10 @@ impl Environment {
             .into(),
         )
     }
-    pub fn define(&mut self, name: &str, value: LoxValue) {
+    pub fn define(&mut self, name: &str, value: RuntimeValue) {
         self.values.insert(name.to_string(), value);
     }
-    pub fn assign(&mut self, name: &str, value: LoxValue) -> Option<LoxValue> {
+    pub fn assign(&mut self, name: &str, value: RuntimeValue) -> Option<RuntimeValue> {
         if self.values.contains_key(name) {
             self.values.insert(name.to_string(), value)
         } else if let Some(enclosing) = &self.enclosing {
@@ -41,7 +41,12 @@ impl Environment {
             None
         }
     }
-    pub fn assign_at(&mut self, distance: usize, name: &str, value: LoxValue) -> Option<LoxValue> {
+    pub fn assign_at(
+        &mut self,
+        distance: usize,
+        name: &str,
+        value: RuntimeValue,
+    ) -> Option<RuntimeValue> {
         if distance > 0 {
             self.ancestor(distance)
                 .lock()
@@ -52,7 +57,7 @@ impl Environment {
             self.values.insert(name.to_string(), value)
         }
     }
-    pub fn get(&self, name: &str) -> Option<LoxValue> {
+    pub fn get(&self, name: &str) -> Option<RuntimeValue> {
         let mut value = self.values.get(name).cloned();
         if value.is_none() {
             if let Some(enclosing) = &self.enclosing {
@@ -61,7 +66,7 @@ impl Environment {
         }
         value
     }
-    pub fn get_at(&self, distance: usize, name: &str) -> Option<LoxValue> {
+    pub fn get_at(&self, distance: usize, name: &str) -> Option<RuntimeValue> {
         if distance > 0 {
             self.ancestor(distance)
                 .lock()

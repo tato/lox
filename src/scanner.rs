@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use std::{collections::hash_map::HashMap, error::Error, fmt::Display};
 
 use crate::token::{Token, TokenKind};
-use crate::{value::LoxValue};
+use crate::value::RuntimeValue;
 
 lazy_static! {
     static ref RESERVED_WORDS: HashMap<String, TokenKind> = {
@@ -55,7 +55,7 @@ impl Scanner {
         self.tokens.push(Token {
             kind: TokenKind::Eof,
             lexeme: "".into(),
-            literal: LoxValue::Nil,
+            literal: RuntimeValue::Nil,
             line: self.line,
             scanner_index: self.start,
         });
@@ -166,14 +166,14 @@ impl Scanner {
 
     fn add_token(&mut self, kind: TokenKind) {
         let value = match kind {
-            TokenKind::True => LoxValue::Bool(true),
-            TokenKind::False => LoxValue::Bool(false),
-            _ => LoxValue::Nil,
+            TokenKind::True => RuntimeValue::Bool(true),
+            TokenKind::False => RuntimeValue::Bool(false),
+            _ => RuntimeValue::Nil,
         };
         self.add_literal_token(kind, value);
     }
 
-    fn add_literal_token(&mut self, kind: TokenKind, literal: LoxValue) {
+    fn add_literal_token(&mut self, kind: TokenKind, literal: RuntimeValue) {
         let text: String = self.source[self.start..self.current].iter().collect();
         self.tokens.push(Token {
             kind,
@@ -199,7 +199,7 @@ impl Scanner {
             .iter()
             .cloned()
             .collect();
-        self.add_literal_token(TokenKind::String, LoxValue::Str(value));
+        self.add_literal_token(TokenKind::String, RuntimeValue::Str(value));
         Ok(())
     }
 
@@ -219,7 +219,7 @@ impl Scanner {
             .collect::<String>()
             .parse()
             .expect("Couldn't parse number");
-        self.add_literal_token(TokenKind::Number, LoxValue::Float(value));
+        self.add_literal_token(TokenKind::Number, RuntimeValue::Float(value));
     }
 
     fn identifier(&mut self) {
@@ -246,9 +246,13 @@ pub enum ScanError {
 impl Display for ScanError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ScanError::UnexpectedCharacter(c, line) => write!(f, "[Line {}] Unexpected character '{}'.", line, c),
-            ScanError::UnterminatedString(line) => write!(f, "[Line {}] Unterminated string.", line),
+            ScanError::UnexpectedCharacter(c, line) => {
+                write!(f, "[Line {}] Unexpected character '{}'.", line, c)
+            }
+            ScanError::UnterminatedString(line) => {
+                write!(f, "[Line {}] Unterminated string.", line)
+            }
         }
     }
 }
-impl Error for ScanError { }
+impl Error for ScanError {}
