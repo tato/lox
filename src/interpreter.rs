@@ -83,9 +83,7 @@ impl Interpreter {
                     Err(InterpreterError::NotCallable(callee))
                 }
             }
-            Expr::This { .. } => {
-                todo!()
-            }
+            Expr::This { keyword } => self.look_up_variable(keyword, expr),
             Expr::Get { object, name } => {
                 let object = self.evaluate(object)?;
                 if let RuntimeValue::Instance(instance) = object {
@@ -272,8 +270,10 @@ impl Interpreter {
             }
             Stmt::Function(fun) => {
                 let function = UserFunction::new(fun, self.environment.clone());
-                self.environment
-                    .define(&fun.name.lexeme, RuntimeValue::UserFunction(function.into()));
+                self.environment.define(
+                    &fun.name.lexeme,
+                    RuntimeValue::UserFunction(function.into()),
+                );
             }
             Stmt::Class { name, methods } => {
                 self.environment.define(&name.lexeme, RuntimeValue::Nil);

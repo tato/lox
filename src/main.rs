@@ -12,13 +12,11 @@ mod scanner;
 mod token;
 mod value;
 
-struct Lox {
-}
+struct Lox {}
 
 impl Lox {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 
     pub fn run(&mut self, source: String) -> anyhow::Result<()> {

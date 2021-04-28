@@ -80,10 +80,7 @@ impl<'interp> Resolver<'interp> {
                 self.begin_scope();
                 self.scopes.last_mut().unwrap().insert("this".into(), true);
                 for method in methods {
-                    self.resolve_function(
-                        method,
-                        FunctionType::Method,
-                    );
+                    self.resolve_function(method, FunctionType::Method);
                 }
                 self.end_scope()
             }
@@ -151,11 +148,7 @@ impl<'interp> Resolver<'interp> {
         }
     }
 
-    fn resolve_function(
-        &mut self,
-        fun: &FunctionStmt,
-        kind: FunctionType,
-    ) {
+    fn resolve_function(&mut self, fun: &FunctionStmt, kind: FunctionType) {
         let enclosing_function = self.current_function;
         self.current_function = kind;
 
