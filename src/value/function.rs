@@ -14,6 +14,7 @@ use super::{CallableValue, ClassInstance, RuntimeValue};
 struct UserFunctionStorage {
     declaration: FunctionStmt,
     closure: Environment,
+    is_initializer: bool,
 }
 #[derive(Clone)]
 pub struct UserFunction(Arc<UserFunctionStorage>);
@@ -50,11 +51,12 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(fun: &FunctionStmt, closure: &Environment) -> Self {
+    pub fn new(fun: &FunctionStmt, closure: &Environment, is_initializer: bool) -> Self {
         Self(
             UserFunctionStorage {
                 declaration: fun.clone(),
                 closure: closure.clone(),
+                is_initializer,
             }
             .into(),
         )
@@ -62,7 +64,7 @@ impl UserFunction {
     pub fn bind(&self, instance: &ClassInstance) -> UserFunction {
         let environment = self.0.closure.child();
         environment.define("this", RuntimeValue::Instance(instance.clone()));
-        UserFunction::new(&self.0.declaration, &environment)
+        UserFunction::new(&self.0.declaration, &environment, self.0.is_initializer)
     }
 }
 impl CallableValue for UserFunction {
@@ -77,6 +79,9 @@ impl CallableValue for UserFunction {
         }
         if let Err(e) = interpreter.execute_block(&self.0.declaration.body, &environment) {
             match e {
+                InterpreterError::Return(_) if self.0.is_initializer => {
+                    Ok(self.0.closure.get_at(0, "this").unwrap())
+                }
                 InterpreterError::Return(v) => Ok(v),
                 e => Err(e),
             }

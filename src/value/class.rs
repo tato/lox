@@ -32,15 +32,20 @@ impl PartialEq for ClassDefinition {
 impl CallableValue for ClassDefinition {
     fn call(
         &self,
-        _: &mut Interpreter,
-        _: Vec<RuntimeValue>,
+        interpreter: &mut Interpreter,
+        args: Vec<RuntimeValue>,
     ) -> Result<RuntimeValue, InterpreterError> {
         let instance = ClassInstance::new(self);
-        Ok(RuntimeValue::Instance(instance.into()))
+        let initializer = self.find_method("init");
+        if let Some(fun) = initializer {
+            fun.bind(&instance).call(interpreter, args)?;
+        }
+        Ok(RuntimeValue::Instance(instance))
     }
 
     fn arity(&self) -> usize {
-        0
+        let initializer = self.find_method("init");
+        initializer.as_ref().map(CallableValue::arity).unwrap_or(0)
     }
 }
 impl ClassDefinition {

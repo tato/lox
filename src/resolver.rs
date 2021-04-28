@@ -68,6 +68,9 @@ impl<'interp> Resolver<'interp> {
                 if self.current_function == FunctionType::None {
                     todo!("Can't return from top-level code.");
                 }
+                if self.current_function == FunctionType::Initializer {
+                    todo!("Can't return a value from an initializer.");
+                }
                 if let Some(value) = value {
                     self.resolve_expr(value);
                 }
@@ -85,7 +88,12 @@ impl<'interp> Resolver<'interp> {
                 self.begin_scope();
                 self.scopes.last_mut().unwrap().insert("this".into(), true);
                 for method in methods {
-                    self.resolve_function(method, FunctionType::Method);
+                    let declaration = if method.name.lexeme == "init" {
+                        FunctionType::Initializer
+                    } else {
+                        FunctionType::Method
+                    };
+                    self.resolve_function(method, declaration);
                 }
                 self.end_scope();
 
@@ -201,6 +209,7 @@ impl<'interp> Resolver<'interp> {
 enum FunctionType {
     None,
     Function,
+    Initializer,
     Method,
 }
 

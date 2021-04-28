@@ -20,18 +20,15 @@ impl Interpreter {
     pub fn new() -> Self {
         let globals = Environment::new();
         globals.define(
-            "clock".into(),
-            RuntimeValue::BuiltInFunction(
-                BuiltInFunction::new("clock", vec![], |_, _| {
-                    Ok(RuntimeValue::Float(
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .map_err(|_| InterpreterError::Internal)?
-                            .as_millis() as f64,
-                    ))
-                })
-                .into(),
-            ),
+            "clock",
+            RuntimeValue::BuiltInFunction(BuiltInFunction::new("clock", vec![], |_, _| {
+                Ok(RuntimeValue::Float(
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_err(|_| InterpreterError::Internal)?
+                        .as_millis() as f64,
+                ))
+            })),
         );
 
         Self {
@@ -268,22 +265,21 @@ impl Interpreter {
                 }
             }
             Stmt::Function(fun) => {
-                let function = UserFunction::new(fun, &self.environment);
-                self.environment.define(
-                    &fun.name.lexeme,
-                    RuntimeValue::UserFunction(function.into()),
-                );
+                let function = UserFunction::new(fun, &self.environment, false);
+                self.environment
+                    .define(&fun.name.lexeme, RuntimeValue::UserFunction(function));
             }
             Stmt::Class { name, methods } => {
                 self.environment.define(&name.lexeme, RuntimeValue::Nil);
 
                 let mut class_methods = HashMap::new();
                 for method in methods {
-                    let function = UserFunction::new(method, &self.environment);
-                    class_methods.insert(method.name.lexeme.clone(), function.into());
+                    let is_initializer = method.name.lexeme == "this";
+                    let function = UserFunction::new(method, &self.environment, is_initializer);
+                    class_methods.insert(method.name.lexeme.clone(), function);
                 }
 
-                let class = RuntimeValue::Class(ClassDefinition::new(name, class_methods).into());
+                let class = RuntimeValue::Class(ClassDefinition::new(name, class_methods));
                 self.environment.assign(&name.lexeme, class);
             }
         };

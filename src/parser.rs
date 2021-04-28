@@ -483,19 +483,13 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParserError> {
-        if self.exact(&[TokenKind::False]) {
-            Ok(Expr::Literal {
-                value: self.previous(),
-            })
-        } else if self.exact(&[TokenKind::True]) {
-            Ok(Expr::Literal {
-                value: self.previous(),
-            })
-        } else if self.exact(&[TokenKind::Nil]) {
-            Ok(Expr::Literal {
-                value: self.previous(),
-            })
-        } else if self.exact(&[TokenKind::Number, TokenKind::String]) {
+        if self.exact(&[
+            TokenKind::False,
+            TokenKind::True,
+            TokenKind::Nil,
+            TokenKind::Number,
+            TokenKind::String,
+        ]) {
             Ok(Expr::Literal {
                 value: self.previous(),
             })
