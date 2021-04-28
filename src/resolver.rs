@@ -91,6 +91,7 @@ impl<'interp> Resolver<'interp> {
                 self.define(name);
 
                 if let Some(superclass) = superclass {
+                    self.current_class = ClassType::Subclass;
                     if name.lexeme == superclass.lexeme {
                         todo!("A class can't inherit from itself.");
                     }
@@ -175,6 +176,11 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_local(expression, keyword);
             }
             Expr::Super { keyword, .. } => {
+                if self.current_class == ClassType::None {
+                    todo!("Can't use 'super' outside of a class.");
+                } else if self.current_class != ClassType::Subclass {
+                    todo!("Can't use 'super' with no superclass.");
+                }
                 self.resolve_local(expression, keyword);
             }
         }
@@ -241,4 +247,5 @@ enum FunctionType {
 enum ClassType {
     None,
     Class,
+    Subclass,
 }
