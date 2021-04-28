@@ -8,7 +8,6 @@ mod debug;
 mod value;
 
 fn main() {
-
     let mut chunk = Chunk::new();
     let constant = chunk.add_constant(Value(1.2));
     chunk.write(OpCode::Constant.as_u8(), 123);
