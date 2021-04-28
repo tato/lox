@@ -97,6 +97,9 @@ impl<'interp> Resolver<'interp> {
                     self.resolve_expr(&Expr::Variable {
                         name: superclass.clone(),
                     });
+
+                    self.begin_scope();
+                    self.scopes.last_mut().unwrap().insert("super".into(), true);
                 }
 
                 self.begin_scope();
@@ -110,6 +113,10 @@ impl<'interp> Resolver<'interp> {
                     self.resolve_function(method, declaration);
                 }
                 self.end_scope();
+
+                if superclass.is_some() {
+                    self.end_scope();
+                }
 
                 self.current_class = enclosing_class;
             }
@@ -165,6 +172,9 @@ impl<'interp> Resolver<'interp> {
                 if self.current_class == ClassType::None {
                     todo!("Can't use 'this' outside of a class. {}", keyword.line);
                 }
+                self.resolve_local(expression, keyword);
+            }
+            Expr::Super { keyword, .. } => {
                 self.resolve_local(expression, keyword);
             }
         }

@@ -511,6 +511,11 @@ impl Parser {
             Ok(Expr::Grouping {
                 expression: expr.into(),
             })
+        } else if self.exact(&[TokenKind::Super]) {
+            let keyword = self.previous();
+            self.consume(TokenKind::Dot, "Expect '.' after 'super'.")?;
+            let method = self.consume(TokenKind::Identifier, "Expect superclass method name.")?;
+            Ok(Expr::Super { keyword, method })
         } else if self.exact(&[TokenKind::This]) {
             Ok(Expr::This {
                 keyword: self.previous(),

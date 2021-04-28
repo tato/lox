@@ -31,6 +31,9 @@ impl Environment {
             .into(),
         )
     }
+    pub fn enclosing(&self) -> Option<Environment> {
+        self.0.enclosing.clone()
+    }
     pub fn define(&self, name: &str, value: RuntimeValue) {
         self.0
             .values

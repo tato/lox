@@ -80,6 +80,27 @@ impl Interpreter {
                 }
             }
             Expr::This { keyword } => self.look_up_variable(keyword, expr),
+            Expr::Super { method, .. } => {
+                let distance = *self.locals.get(expr).unwrap();
+
+                let superclass = self.environment.get_at(distance, "super");
+                let superclass = match superclass {
+                    Some(RuntimeValue::Class(sc)) => sc,
+                    _ => unreachable!("'super' can only be class."),
+                };
+
+                let object = self.environment.get_at(distance - 1, "this");
+                let object = match object {
+                    Some(RuntimeValue::Instance(i)) => i,
+                    _ => unreachable!("'this' can only be instance."),
+                };
+
+                let method = superclass
+                    .find_method(&method.lexeme)
+                    .ok_or(InterpreterError::UndefinedProperty(method.clone()))?;
+
+                Ok(RuntimeValue::UserFunction(method.bind(&object)))
+            }
             Expr::Get { object, name } => {
                 let object = self.evaluate(object)?;
                 if let RuntimeValue::Instance(instance) = object {
@@ -286,6 +307,12 @@ impl Interpreter {
 
                 self.environment.define(&name.lexeme, RuntimeValue::Nil);
 
+                if let Some(sc) = &superclass {
+                    self.environment = self.environment.child();
+                    self.environment
+                        .define("super", RuntimeValue::Class(sc.clone()));
+                }
+
                 let mut class_methods = HashMap::new();
                 for method in methods {
                     let is_initializer = method.name.lexeme == "this";
@@ -293,8 +320,14 @@ impl Interpreter {
                     class_methods.insert(method.name.lexeme.clone(), function);
                 }
 
-                let class =
-                    RuntimeValue::Class(ClassDefinition::new(name, superclass, class_methods));
+                let class = RuntimeValue::Class(ClassDefinition::new(
+                    name,
+                    superclass.clone(),
+                    class_methods,
+                ));
+                if superclass.is_some() {
+                    self.environment = self.environment.enclosing().unwrap();
+                }
                 self.environment.assign(&name.lexeme, class);
             }
         };
