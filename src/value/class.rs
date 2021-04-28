@@ -11,19 +11,22 @@ use crate::{
 
 use super::{CallableValue, RuntimeValue, UserFunction};
 
-#[derive(Debug, Clone)]
-pub struct ClassDefinition {
+#[derive(Debug)]
+pub struct ClassDefinitionStorage {
     name: Token,
-    methods: HashMap<String, Arc<UserFunction>>,
+    methods: HashMap<String, UserFunction>,
 }
+#[derive(Debug, Clone)]
+pub struct ClassDefinition(Arc<ClassDefinitionStorage>);
+
 impl Display for ClassDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<class {}>", self.name.lexeme)
+        write!(f, "<class {}>", self.0.name.lexeme)
     }
 }
 impl PartialEq for ClassDefinition {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.0.name == other.0.name
     }
 }
 impl CallableValue for ClassDefinition {
@@ -41,14 +44,14 @@ impl CallableValue for ClassDefinition {
     }
 }
 impl ClassDefinition {
-    pub fn new(name: &Token, methods: HashMap<String, Arc<UserFunction>>) -> Self {
-        Self {
+    pub fn new(name: &Token, methods: HashMap<String, UserFunction>) -> Self {
+        Self (ClassDefinitionStorage{
             name: name.clone(),
             methods,
-        }
+        }.into())
     }
-    pub fn find_method(&self, name: &str) -> Option<Arc<UserFunction>> {
-        self.methods.get(name).cloned()
+    pub fn find_method(&self, name: &str) -> Option<UserFunction> {
+        self.0.methods.get(name).cloned()
     }
 }
 #[derive(Debug)]
@@ -64,7 +67,7 @@ impl Display for ClassInstance {
         write!(
             f,
             "instance {}({})",
-            &self.0.class.name.lexeme,
+            &self.0.class.0.name.lexeme,
             self.0
                 .fields
                 .lock()

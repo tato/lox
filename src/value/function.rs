@@ -13,7 +13,7 @@ use super::{CallableValue, ClassInstance, RuntimeValue};
 
 struct UserFunctionStorage {
     declaration: FunctionStmt,
-    closure: Arc<Environment>,
+    closure: Environment,
 }
 #[derive(Clone)]
 pub struct UserFunction(Arc<UserFunctionStorage>);
@@ -50,19 +50,19 @@ impl PartialEq for UserFunction {
     }
 }
 impl UserFunction {
-    pub fn new(fun: &FunctionStmt, closure: Arc<Environment>) -> Self {
+    pub fn new(fun: &FunctionStmt, closure: &Environment) -> Self {
         Self(
             UserFunctionStorage {
                 declaration: fun.clone(),
-                closure,
+                closure: closure.clone(),
             }
             .into(),
         )
     }
     pub fn bind(&self, instance: &ClassInstance) -> UserFunction {
-        let environment = Environment::new_child(self.0.closure.clone());
+        let environment = self.0.closure.child();
         environment.define("this", RuntimeValue::Instance(instance.clone()));
-        UserFunction::new(&self.0.declaration, environment)
+        UserFunction::new(&self.0.declaration, &environment)
     }
 }
 impl CallableValue for UserFunction {
@@ -71,11 +71,11 @@ impl CallableValue for UserFunction {
         interpreter: &mut Interpreter,
         args: Vec<RuntimeValue>,
     ) -> Result<RuntimeValue, InterpreterError> {
-        let environment = Environment::new_child(self.0.closure.clone());
+        let environment = self.0.closure.child();
         for (arg, arg_value) in self.0.declaration.params.iter().zip(&args) {
             environment.define(&arg.lexeme, arg_value.clone());
         }
-        if let Err(e) = interpreter.execute_block(&self.0.declaration.body, environment) {
+        if let Err(e) = interpreter.execute_block(&self.0.declaration.body, &environment) {
             match e {
                 InterpreterError::Return(v) => Ok(v),
                 e => Err(e),
@@ -89,29 +89,31 @@ impl CallableValue for UserFunction {
     }
 }
 
-pub struct BuiltInFunction {
+pub struct BuiltInFunctionStorage {
     name: String,
     args: Vec<String>,
     callable: fn(&Interpreter, Vec<RuntimeValue>) -> Result<RuntimeValue, InterpreterError>,
 }
+#[derive(Clone)]
+pub struct BuiltInFunction(Arc<BuiltInFunctionStorage>);
 
 impl Debug for BuiltInFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "BuiltInFunction{{ name: {:?}, args: {:?}, callable: ?? }}",
-            self.name, self.args
+            self.0.name, self.0.args
         )
     }
 }
 impl Display for BuiltInFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<fun {}({})>", self.name, self.args.join(", "))
+        write!(f, "<fun {}({})>", self.0.name, self.0.args.join(", "))
     }
 }
 impl PartialEq for BuiltInFunction {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.0.name == other.0.name
     }
 }
 impl BuiltInFunction {
@@ -120,11 +122,11 @@ impl BuiltInFunction {
         args: Vec<&str>,
         callable: fn(&Interpreter, Vec<RuntimeValue>) -> Result<RuntimeValue, InterpreterError>,
     ) -> Self {
-        Self {
+        Self(BuiltInFunctionStorage{
             name: name.into(),
             args: args.into_iter().map(str::to_string).collect(),
             callable,
-        }
+        }.into())
     }
 }
 
@@ -134,9 +136,9 @@ impl CallableValue for BuiltInFunction {
         interpreter: &mut Interpreter,
         args: Vec<RuntimeValue>,
     ) -> Result<RuntimeValue, InterpreterError> {
-        (self.callable)(interpreter, args)
+        (self.0.callable)(interpreter, args)
     }
     fn arity(&self) -> usize {
-        self.args.len()
+        self.0.args.len()
     }
 }

@@ -8,13 +8,12 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
-    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 pub struct Interpreter {
-    globals: Arc<Environment>,
-    environment: Arc<Environment>,
+    globals: Environment,
+    environment: Environment,
     locals: HashMap<Expr, usize>,
 }
 impl Interpreter {
@@ -250,7 +249,7 @@ impl Interpreter {
                 self.environment.define(&name.lexeme, value);
             }
             Stmt::Block { statements } => {
-                self.execute_block(statements, Environment::new_child(self.environment.clone()))?;
+                self.execute_block(statements, &self.environment.child())?;
             }
             Stmt::If {
                 condition,
@@ -269,7 +268,7 @@ impl Interpreter {
                 }
             }
             Stmt::Function(fun) => {
-                let function = UserFunction::new(fun, self.environment.clone());
+                let function = UserFunction::new(fun, &self.environment);
                 self.environment.define(
                     &fun.name.lexeme,
                     RuntimeValue::UserFunction(function.into()),
@@ -280,7 +279,7 @@ impl Interpreter {
 
                 let mut class_methods = HashMap::new();
                 for method in methods {
-                    let function = UserFunction::new(method, self.environment.clone());
+                    let function = UserFunction::new(method, &self.environment);
                     class_methods.insert(method.name.lexeme.clone(), function.into());
                 }
 
@@ -294,10 +293,10 @@ impl Interpreter {
     pub fn execute_block(
         &mut self,
         statements: &[Stmt],
-        environment: Arc<Environment>,
+        environment: &Environment,
     ) -> Result<(), InterpreterError> {
         let previous = self.environment.clone();
-        self.environment = environment;
+        self.environment = environment.clone();
         for statement in statements {
             let result = self.execute(statement);
             if result.is_err() {

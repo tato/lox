@@ -15,9 +15,9 @@ pub enum RuntimeValue {
     Bool(bool),
     Float(f64),
     Str(Arc<str>),
-    BuiltInFunction(Arc<BuiltInFunction>),
+    BuiltInFunction(BuiltInFunction),
     UserFunction(UserFunction),
-    Class(Arc<ClassDefinition>),
+    Class(ClassDefinition),
     Instance(ClassInstance),
     Nil,
 }
@@ -49,9 +49,9 @@ impl RuntimeValue {
     }
     pub fn as_callable(&self) -> Option<&dyn CallableValue> {
         match self {
-            RuntimeValue::BuiltInFunction(x) => Some(x.as_ref()),
+            RuntimeValue::BuiltInFunction(x) => Some(x),
             RuntimeValue::UserFunction(x) => Some(x),
-            RuntimeValue::Class(x) => Some(x.as_ref()),
+            RuntimeValue::Class(x) => Some(x),
             _ => None,
         }
     }
