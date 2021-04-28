@@ -155,7 +155,8 @@ impl Interpreter {
                             Ok(RuntimeValue::Float(l + r))
                         } else if let (RuntimeValue::Str(l), RuntimeValue::Str(r)) = (&left, &right)
                         {
-                            Ok(RuntimeValue::Str(l.clone() + r))
+                            let s = l.to_string() + r;
+                            Ok(RuntimeValue::Str(s.as_str().into()))
                         } else {
                             Err(InterpreterError::OperandsMustBeNumbersOrStr)
                         }

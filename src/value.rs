@@ -16,7 +16,6 @@ pub trait CallableValue {
     fn arity(&self) -> usize;
 }
 
-#[derive(Clone)]
 pub struct BuiltInFunction {
     name: String,
     args: Vec<String>,
@@ -183,7 +182,7 @@ impl ClassDefinition {
 #[derive(Clone, Debug)]
 pub struct ClassInstance {
     class: Box<ClassDefinition>, // TODO!
-    fields: Rc<HashMap<String, RuntimeValue>>, // TODO! IDK WHATEVER XD
+    fields: HashMap<String, RuntimeValue>, // TODO! IDK WHATEVER XD
 }
 impl Display for ClassInstance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -207,15 +206,16 @@ impl ClassInstance {
     }
 }
 
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
     Bool(bool),
     Float(f64),
-    Str(String),
-    BuiltInFunction(Box<BuiltInFunction>),
-    UserFunction(Box<UserFunction>),
-    Class(Box<ClassDefinition>),
-    Instance(Box<ClassInstance>),
+    Str(Arc<str>),
+    BuiltInFunction(Arc<BuiltInFunction>),
+    UserFunction(Arc<UserFunction>),
+    Class(Arc<ClassDefinition>),
+    Instance(Arc<ClassInstance>),
     Nil,
 }
 impl Display for RuntimeValue {

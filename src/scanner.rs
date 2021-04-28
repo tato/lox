@@ -199,7 +199,7 @@ impl Scanner {
             .iter()
             .cloned()
             .collect();
-        self.add_literal_token(TokenKind::String, RuntimeValue::Str(value));
+        self.add_literal_token(TokenKind::String, RuntimeValue::Str(value.as_str().into()));
         Ok(())
     }
 
