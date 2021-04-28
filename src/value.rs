@@ -67,9 +67,7 @@ impl CallableValue for BuiltInFunction {
 
 #[derive(Clone)]
 pub struct UserFunction {
-    name: Token,
-    args: Vec<Token>,
-    body: Vec<Stmt>,
+    declaration: FunctionStmt,
     closure: Arc<Environment>,
 }
 impl Debug for UserFunction {
@@ -77,7 +75,7 @@ impl Debug for UserFunction {
         write!(
             f,
             "UserFunction{{ name: {:?}, args: {:?}, body: {:?}, closure: ?? }}",
-            self.name, self.args, self.body
+            self.declaration.name, self.declaration.params, self.declaration.body
         )
     }
 }
@@ -86,8 +84,8 @@ impl Display for UserFunction {
         write!(
             f,
             "<fun {}({})>",
-            self.name.lexeme,
-            self.args
+            self.declaration.name.lexeme,
+            self.declaration.params
                 .iter()
                 .map(|it| &it.lexeme)
                 .map(|it| &**it)
@@ -98,17 +96,20 @@ impl Display for UserFunction {
 }
 impl PartialEq for UserFunction {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.declaration.name == other.declaration.name
     }
 }
 impl UserFunction {
     pub fn new(fun: &FunctionStmt, closure: Arc<Environment>) -> Self {
         Self {
-            name: fun.name.clone().into(),
-            args: fun.params.to_vec(),
-            body: fun.body.to_vec(),
+            declaration: fun.clone(),
             closure,
         }
+    }
+    pub fn bind(&self, instance: &ClassInstance) -> UserFunction {
+        let environment = Environment::new_child(self.closure.clone());
+        environment.define("this", /*instance.clone()*/ todo!());
+        UserFunction::new(&self.declaration, environment)
     }
 }
 impl CallableValue for UserFunction {
@@ -118,10 +119,10 @@ impl CallableValue for UserFunction {
         args: Vec<RuntimeValue>,
     ) -> Result<RuntimeValue, InterpreterError> {
         let environment = Environment::new_child(self.closure.clone());
-        for (arg, arg_value) in self.args.iter().zip(&args) {
+        for (arg, arg_value) in self.declaration.params.iter().zip(&args) {
             environment.define(&arg.lexeme, arg_value.clone());
         }
-        if let Err(e) = interpreter.execute_block(&self.body, environment) {
+        if let Err(e) = interpreter.execute_block(&self.declaration.body, environment) {
             match e {
                 InterpreterError::Return(v) => Ok(v),
                 e => Err(e),
@@ -131,7 +132,7 @@ impl CallableValue for UserFunction {
         }
     }
     fn arity(&self) -> usize {
-        self.args.len()
+        self.declaration.params.len()
     }
 }
 
@@ -168,8 +169,8 @@ impl ClassDefinition {
     pub fn new(name: &Token, methods: HashMap<String, Arc<UserFunction>>) -> Self {
         Self { name: name.clone(), methods }
     }
-    pub fn find_method(&self, name: &str) -> Option<RuntimeValue> {
-        self.methods.get(name).cloned().map(RuntimeValue::UserFunction)
+    pub fn find_method(&self, name: &str) -> Option<Arc<UserFunction>> {
+        self.methods.get(name).cloned()
     }
 }
 
@@ -213,8 +214,11 @@ impl ClassInstance {
         match field {
             Some(_) => field,
             None => {
-                let method = self.class.find_method(&name.lexeme);
-                method
+                // self.class
+                //     .find_method(&name.lexeme)
+                //     .map(|it| it.bind(self))
+                //     .map(RuntimeValue::UserFunction)
+                todo!()
             }
         }
     }
@@ -225,6 +229,8 @@ impl ClassInstance {
             .insert(name.lexeme.clone(), value);
     }
 }
+
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {

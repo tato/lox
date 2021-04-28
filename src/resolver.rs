@@ -77,12 +77,15 @@ impl<'interp> Resolver<'interp> {
             Stmt::Class { name, methods } => {
                 self.declare(name);
                 self.define(name);
+                self.begin_scope();
+                self.scopes.last_mut().unwrap().insert("this".into(), true);
                 for method in methods {
                     self.resolve_function(
                         method,
                         FunctionType::Method,
                     );
                 }
+                self.end_scope()
             }
         }
     }
@@ -131,6 +134,9 @@ impl<'interp> Resolver<'interp> {
             }
             Expr::Unary { right, .. } => {
                 self.resolve_expr(right);
+            }
+            Expr::This { keyword } => {
+                self.resolve_local(expression, keyword);
             }
         }
     }

@@ -505,6 +505,8 @@ impl Parser {
             Ok(Expr::Grouping {
                 expression: expr.into(),
             })
+        } else if self.exact(&[TokenKind::This]) {
+            Ok(Expr::This{ keyword: self.previous() })
         } else if self.exact(&[TokenKind::Identifier]) {
             Ok(Expr::Variable {
                 name: self.previous(),

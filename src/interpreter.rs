@@ -83,6 +83,9 @@ impl Interpreter {
                     Err(InterpreterError::NotCallable(callee))
                 }
             }
+            Expr::This { .. } => {
+                todo!()
+            }
             Expr::Get { object, name } => {
                 let object = self.evaluate(object)?;
                 if let RuntimeValue::Instance(instance) = object {
