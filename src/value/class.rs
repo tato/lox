@@ -45,10 +45,13 @@ impl CallableValue for ClassDefinition {
 }
 impl ClassDefinition {
     pub fn new(name: &Token, methods: HashMap<String, UserFunction>) -> Self {
-        Self (ClassDefinitionStorage{
-            name: name.clone(),
-            methods,
-        }.into())
+        Self(
+            ClassDefinitionStorage {
+                name: name.clone(),
+                methods,
+            }
+            .into(),
+        )
     }
     pub fn find_method(&self, name: &str) -> Option<UserFunction> {
         self.0.methods.get(name).cloned()

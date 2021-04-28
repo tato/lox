@@ -14,19 +14,29 @@ pub struct Environment(Arc<EnvironmentStorage>);
 
 impl Environment {
     pub fn new() -> Self {
-        Self (EnvironmentStorage{
-            values: HashMap::new().into(),
-            enclosing: None,
-        }.into())
+        Self(
+            EnvironmentStorage {
+                values: HashMap::new().into(),
+                enclosing: None,
+            }
+            .into(),
+        )
     }
     pub fn child(&self) -> Self {
-        Self(EnvironmentStorage {
-            values: HashMap::new().into(),
-            enclosing: Some(self.clone()),
-        }.into())
+        Self(
+            EnvironmentStorage {
+                values: HashMap::new().into(),
+                enclosing: Some(self.clone()),
+            }
+            .into(),
+        )
     }
     pub fn define(&self, name: &str, value: RuntimeValue) {
-        self.0.values.lock().unwrap().insert(name.to_string(), value);
+        self.0
+            .values
+            .lock()
+            .unwrap()
+            .insert(name.to_string(), value);
     }
     pub fn assign(&self, name: &str, value: RuntimeValue) -> Option<RuntimeValue> {
         let mut values = self.0.values.lock().unwrap();
@@ -52,7 +62,11 @@ impl Environment {
                 .unwrap()
                 .insert(name.to_string(), value)
         } else {
-            self.0.values.lock().unwrap().insert(name.to_string(), value)
+            self.0
+                .values
+                .lock()
+                .unwrap()
+                .insert(name.to_string(), value)
         }
     }
     pub fn get(&self, name: &str) -> Option<RuntimeValue> {

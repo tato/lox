@@ -10,6 +10,7 @@ pub struct Resolver<'interp> {
     interpreter: &'interp mut Interpreter,
     scopes: Vec<HashMap<String, bool>>,
     current_function: FunctionType,
+    current_class: ClassType,
 }
 impl<'interp> Resolver<'interp> {
     pub fn new(interpreter: &'interp mut Interpreter) -> Self {
@@ -17,6 +18,7 @@ impl<'interp> Resolver<'interp> {
             interpreter,
             scopes: vec![],
             current_function: FunctionType::None,
+            current_class: ClassType::None,
         }
     }
 
@@ -75,6 +77,9 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_stmt(body);
             }
             Stmt::Class { name, methods } => {
+                let enclosing_class = self.current_class;
+                self.current_class = ClassType::Class;
+
                 self.declare(name);
                 self.define(name);
                 self.begin_scope();
@@ -82,7 +87,9 @@ impl<'interp> Resolver<'interp> {
                 for method in methods {
                     self.resolve_function(method, FunctionType::Method);
                 }
-                self.end_scope()
+                self.end_scope();
+
+                self.current_class = enclosing_class;
             }
         }
     }
@@ -133,6 +140,9 @@ impl<'interp> Resolver<'interp> {
                 self.resolve_expr(right);
             }
             Expr::This { keyword } => {
+                if self.current_class == ClassType::None {
+                    todo!("Can't use 'this' outside of a class. {}", keyword.line);
+                }
                 self.resolve_local(expression, keyword);
             }
         }
@@ -192,4 +202,10 @@ enum FunctionType {
     None,
     Function,
     Method,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClassType {
+    None,
+    Class,
 }

@@ -122,11 +122,14 @@ impl BuiltInFunction {
         args: Vec<&str>,
         callable: fn(&Interpreter, Vec<RuntimeValue>) -> Result<RuntimeValue, InterpreterError>,
     ) -> Self {
-        Self(BuiltInFunctionStorage{
-            name: name.into(),
-            args: args.into_iter().map(str::to_string).collect(),
-            callable,
-        }.into())
+        Self(
+            BuiltInFunctionStorage {
+                name: name.into(),
+                args: args.into_iter().map(str::to_string).collect(),
+                callable,
+            }
+            .into(),
+        )
     }
 }
 
