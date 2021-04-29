@@ -1,3 +1,7 @@
+use std::{borrow::Cow, fmt::Display};
+
+use crate::scanner::{Token, TokenKind};
+
 #[derive(thiserror::Error, Debug)]
 pub enum InterpretError {
     #[error(transparent)]
@@ -7,10 +11,46 @@ pub enum InterpretError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CompileError {}
+pub enum CompileError {
+    #[error("{0}")]
+    ScanError(ErrorInfo),
+    #[error("{0}")]
+    ParseError(ErrorInfo),
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum RuntimeError {
     #[error("Byte '{0}' does not map to any op code.")]
     InvalidOpcode(u8),
+}
+
+#[derive(Debug)]
+pub struct ErrorInfo {
+    line: usize,
+    location: String,
+    message: String,
+}
+impl Display for ErrorInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[line {}] {}", self.line, self.message)
+    }
+}
+impl ErrorInfo {
+    pub fn error<'any>(token: &Token<'any>, message: &str) -> Self {
+        let (location, message) = if token.kind == TokenKind::Eof {
+            (" at end".to_string(), message.to_string())
+        } else if token.kind == TokenKind::Error {
+            ("".to_string(), token.lexeme.iter().collect::<String>())
+        } else {
+            (
+                format!(" at '{}'", token.lexeme.iter().collect::<String>()),
+                message.to_string(),
+            )
+        };
+        Self {
+            line: token.line,
+            location,
+            message,
+        }
+    }
 }

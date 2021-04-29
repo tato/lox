@@ -11,14 +11,12 @@ pub fn derive_enum_variant_count(input: TokenStream) -> TokenStream {
     let enum_name = syn_item.ident;
     let expanded = quote! {
         impl #enum_name {
-            pub fn count() -> usize {
-                #len
-            }
+            pub const COUNT: usize = #len;
             pub fn as_u8(&self) -> u8 {
                 *self as u8
             }
             pub fn from_u8(byte: u8) -> Option<Self> {
-                if byte as usize >= Self::count() {
+                if byte as usize >= Self::COUNT {
                     None
                 } else {
                     unsafe { std::mem::transmute(byte) }

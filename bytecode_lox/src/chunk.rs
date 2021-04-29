@@ -61,8 +61,10 @@ impl Chunk {
             lines: vec![],
         }
     }
-    pub fn write(&mut self, byte: u8, line: u32) {
+    pub fn write(&mut self, byte: u8, line: usize) {
         self.code.push(byte);
+
+        let line = line as u32; // TODO! checked
 
         if self.lines.last().map(|it| it.line == line).unwrap_or(false) {
             let len = self.lines.len();

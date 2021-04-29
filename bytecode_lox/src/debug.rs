@@ -1,6 +1,6 @@
 use crate::chunk::{Chunk, OpCode};
 
-pub fn _disassemble_chunk(chunk: &Chunk, name: &str) {
+pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
     println!("== {} ==", name);
     let mut offset = 0;
     while offset < chunk.code.len() {

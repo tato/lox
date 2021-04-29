@@ -96,10 +96,9 @@ impl<'chunk> VM<'chunk> {
     }
 
     pub fn interpret(source: &str) -> Result<(), InterpretError> {
-        // let mut vm = VM::new(chunk);
-        // vm.run()
-        Compiler::compile(source);
-        Ok(())
+        let chunk = Compiler::compile(source)?;
+        let mut vm = VM::new(&chunk);
+        vm.run()
     }
 }
 

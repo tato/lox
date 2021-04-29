@@ -5,9 +5,11 @@ authors = ["Pablo Tato Ramos <pabtatoramos@gmail.com>"]
 edition = "2018"
 
 [features]
-default = [ "debug_trace_execution" ]
+default = [ "debug_trace_execution", "debug_print_code" ]
 debug_trace_execution = []
+debug_print_code = []
 
 [dependencies]
 lox_proc_macros = { path = "../lox_proc_macros" }
 thiserror = "1.0"
+lazy_static = "1.4"
