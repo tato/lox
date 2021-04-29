@@ -1,36 +1,67 @@
 use chunk::{Chunk, OpCode};
 
+use error::InterpretError;
 use vm::VM;
 
 mod chunk;
+mod compiler;
 #[cfg(feature = "debug_trace_execution")]
 mod debug;
 mod error;
+mod scanner;
 mod value;
 mod vm;
 
+pub struct Lox {}
+
+fn handle_interpret_error(error: &InterpretError) {
+    match error {
+        InterpretError::Compile(e) => {
+            eprintln!("{}", e);
+            std::process::exit(65);
+        }
+        InterpretError::Runtime(e) => {
+            eprintln!("{}", e);
+            std::process::exit(70);
+        }
+    }
+}
+
+impl Lox {
+    pub fn run_file(path: &str) {
+        let bytes = std::fs::read(path).unwrap();
+        let result = VM::interpret(std::str::from_utf8(&bytes).unwrap());
+        result.as_ref().map_err(handle_interpret_error);
+        result.unwrap();
+    }
+
+    pub fn run_prompt() {
+        let stdin = std::io::stdin();
+        let mut stdout = std::io::stdout();
+        use std::io::{BufRead, Write};
+        loop {
+            print!("> ");
+            stdout.flush().unwrap();
+            let mut line = String::new();
+            let mut reader = stdin.lock();
+            if reader.read_line(&mut line).unwrap() == 0 {
+                break;
+            }
+            if let Err(error) = VM::interpret(&line) {
+                handle_interpret_error(&error);
+            }
+        }
+    }
+}
+
 fn main() {
-    let mut vm = VM::new();
-
-    let mut chunk = Chunk::new();
-
-    let constant = chunk.add_constant(1.2);
-    chunk.write(OpCode::Constant.as_u8(), 123);
-    chunk.write(constant as u8, 123);
-
-    let constant = chunk.add_constant(3.4);
-    chunk.write(OpCode::Constant.as_u8(), 123);
-    chunk.write(constant as u8, 123);
-
-    chunk.write(OpCode::Add.as_u8(), 123);
-
-    let constant = chunk.add_constant(5.6);
-    chunk.write(OpCode::Constant.as_u8(), 123);
-    chunk.write(constant as u8, 123);
-
-    chunk.write(OpCode::Divide.as_u8(), 123);
-    chunk.write(OpCode::Negate.as_u8(), 123);
-    chunk.write(OpCode::Return.as_u8(), 123);
-
-    vm.interpret(&chunk).unwrap();
+    let args = std::env::args().collect::<Vec<_>>();
+    if args.len() > 2 {
+        println!("Usage: lox [script]");
+        std::process::exit(64);
+    } else if args.len() == 2 {
+        Lox::run_file(&args[1]);
+    } else {
+        Lox::run_prompt();
+    }
 }

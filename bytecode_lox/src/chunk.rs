@@ -1,4 +1,4 @@
-use lox_proc_macros::EnumVariantCount;
+use lox_proc_macros::U8Enum;
 
 use crate::value::Value;
 
@@ -29,7 +29,7 @@ use crate::value::Value;
 // Defining two instructions seems to be the best of both worlds. What
 // sacrifices, if any, does it force on us?
 
-#[derive(Copy, Clone, EnumVariantCount)]
+#[derive(Copy, Clone, U8Enum)]
 #[repr(u8)]
 pub enum OpCode {
     Constant,
@@ -39,19 +39,6 @@ pub enum OpCode {
     Divide,
     Negate,
     Return,
-}
-
-impl OpCode {
-    pub fn as_u8(&self) -> u8 {
-        *self as u8
-    }
-    pub fn from_u8(byte: u8) -> Option<Self> {
-        if byte as usize >= Self::len() {
-            None
-        } else {
-            unsafe { std::mem::transmute(byte) }
-        }
-    }
 }
 
 struct LineInfo {

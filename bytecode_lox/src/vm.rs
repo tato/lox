@@ -2,6 +2,7 @@ use std::usize;
 
 use crate::{
     chunk::{Chunk, OpCode},
+    compiler::Compiler,
     error::{InterpretError, RuntimeError},
     value::Value,
 };
@@ -10,19 +11,18 @@ use crate::{
 use crate::debug::disassemble_instruction;
 
 const STACK_MAX: usize = 256;
-pub struct VM {
+pub struct VM<'chunk> {
     stack: Box<[Value; STACK_MAX]>,
     stack_top: usize,
-}
-
-struct InterpretInfo<'chunk> {
     chunk: &'chunk Chunk,
     ip: usize,
 }
 
-impl VM {
-    pub fn new() -> Self {
+impl<'chunk> VM<'chunk> {
+    pub fn new(chunk: &'chunk Chunk) -> Self {
         VM {
+            chunk,
+            ip: 0,
             stack: [Default::default(); STACK_MAX].into(),
             stack_top: 0,
         }
@@ -40,12 +40,7 @@ impl VM {
         self.stack[self.stack_top]
     }
 
-    pub fn interpret(&mut self, chunk: &Chunk) -> Result<(), InterpretError> {
-        let mut info = InterpretInfo { chunk, ip: 0 };
-        self.run(&mut info)
-    }
-
-    fn run(&mut self, info: &mut InterpretInfo) -> Result<(), InterpretError> {
+    fn run(&mut self) -> Result<(), InterpretError> {
         loop {
             #[cfg(feature = "debug_trace_execution")]
             {
@@ -54,18 +49,18 @@ impl VM {
                     print!("[ {} ]", self.stack[i]);
                 }
                 println!("");
-                disassemble_instruction(info.chunk, info.ip); // TODO! VERY slow!! makes the loop O(n^2)!
+                disassemble_instruction(self.chunk, self.ip); // TODO! VERY slow!! makes the loop O(n^2)!
             }
 
             macro_rules! read_byte {
                 () => {{
-                    info.ip += 1;
-                    info.chunk.code[info.ip - 1]
+                    self.ip += 1;
+                    self.chunk.code[self.ip - 1]
                 }};
             }
             macro_rules! read_constant {
                 () => {
-                    info.chunk.constants[read_byte!() as usize]
+                    self.chunk.constants[read_byte!() as usize]
                 };
             }
             macro_rules! binary_op {
@@ -98,6 +93,13 @@ impl VM {
                 }
             }
         }
+    }
+
+    pub fn interpret(source: &str) -> Result<(), InterpretError> {
+        // let mut vm = VM::new(chunk);
+        // vm.run()
+        Compiler::compile(source);
+        Ok(())
     }
 }
 
