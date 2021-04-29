@@ -3,15 +3,15 @@ use std::cell::Cell;
 mod token;
 pub use token::{Token, TokenKind};
 
-pub struct Scanner<'source> {
+pub struct Scanner {
     start: Cell<usize>,
     current: Cell<usize>,
-    source: &'source [char],
+    source: Vec<char>, // TODO! this should be 'String' or 'Vec<u8>'
     line: Cell<usize>,
 }
 
-impl<'source> Scanner<'source> {
-    pub fn new(source: &'source [char]) -> Scanner<'source> {
+impl Scanner {
+    pub fn new(source: Vec<char>) -> Scanner {
         Self {
             start: Cell::new(0),
             current: Cell::new(0),
@@ -20,7 +20,7 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    pub fn scan(&'source self) -> Token<'source> {
+    pub fn scan<'scanner>(&'scanner self) -> Token<'scanner> {
         self.skip_whitespace();
 
         self.start.set(self.current.get());
@@ -203,7 +203,7 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    fn make_token(&'source self, kind: TokenKind) -> Token<'source> {
+    fn make_token<'scanner>(&'scanner self, kind: TokenKind) -> Token<'scanner> {
         Token {
             kind,
             lexeme: &self.source[self.start.get()..self.current.get()],
@@ -211,7 +211,7 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    fn make_error_token(&'source self, _message: &str) -> Token<'source> {
+    fn make_error_token<'scanner>(&'scanner self, _message: &str) -> Token<'scanner> {
         Token {
             kind: TokenKind::Error,
             lexeme: &['t', 'o', 'd', 'o'],

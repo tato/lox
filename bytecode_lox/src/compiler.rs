@@ -22,7 +22,7 @@ impl<'source> Compiler<'source> {
             v.push('\0');
             v
         };
-        let scanner = Scanner::new(&source_chars);
+        let scanner = Scanner::new(source_chars);
 
         let mut compiler = Compiler {
             chunk: Chunk::new(),
@@ -138,14 +138,14 @@ fn binary(compiler: &mut Compiler) {
 }
 
 struct Parser<'source> {
-    scanner: &'source Scanner<'source>,
+    scanner: &'source Scanner,
     current: Token<'source>,
     previous: Token<'source>,
     panic_mode: bool,
 }
 
 impl<'source> Parser<'source> {
-    pub fn new(scanner: &'source Scanner<'source>) -> Self {
+    pub fn new(scanner: &'source Scanner) -> Self {
         let token = scanner.scan();
         Self {
             scanner,

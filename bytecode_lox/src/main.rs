@@ -5,7 +5,7 @@ use vm::VM;
 
 mod chunk;
 mod compiler;
-#[cfg(feature = "debug_trace_execution")]
+#[cfg(any(feature = "debug_trace_execution", feature = "debug_print_code"))]
 mod debug;
 mod error;
 mod scanner;
