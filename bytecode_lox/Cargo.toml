@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Pablo Tato Ramos <pabtatoramos@gmail.com>"]
 edition = "2018"
 
+[features]
+default = [ "debug_trace_execution" ]
+debug_trace_execution = []
+
 [dependencies]
 lox_proc_macros = { path = "../lox_proc_macros" }
-bytemuck = "1.5"
+thiserror = "1.0"
