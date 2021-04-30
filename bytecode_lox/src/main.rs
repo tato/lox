@@ -30,7 +30,9 @@ impl Lox {
     pub fn run_file(path: &str) {
         let bytes = std::fs::read(path).unwrap();
         let result = VM::interpret(String::from_utf8(bytes).unwrap());
-        result.as_ref().map_err(handle_interpret_error);
+        if let Err(err) = result.as_ref() {
+            handle_interpret_error(err);
+        }
         result.unwrap();
     }
 
