@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display};
+use std::fmt::Display;
 
 use crate::scanner::{Token, TokenKind};
 
@@ -40,10 +40,10 @@ impl ErrorInfo {
         let (location, message) = if token.kind == TokenKind::Eof {
             (" at end".to_string(), message.to_string())
         } else if token.kind == TokenKind::Error {
-            ("".to_string(), token.lexeme.iter().collect::<String>())
+            ("".to_string(), token.lexeme.to_string())
         } else {
             (
-                format!(" at '{}'", token.lexeme.iter().collect::<String>()),
+                format!(" at '{}'", token.lexeme.to_string()),
                 message.to_string(),
             )
         };

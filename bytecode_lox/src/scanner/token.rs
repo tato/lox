@@ -1,9 +1,9 @@
 use lox_proc_macros::U8Enum;
 
-#[derive(Clone)] // TODO! no clone?
+#[derive(Clone)]
 pub struct Token<'scanner> {
     pub kind: TokenKind,
-    pub lexeme: &'scanner [char],
+    pub lexeme: &'scanner str,
     pub line: usize,
 }
 

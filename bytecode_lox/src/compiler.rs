@@ -16,13 +16,8 @@ pub struct Compiler<'source> {
 }
 
 impl<'source> Compiler<'source> {
-    pub fn compile(source: &'source str) -> Result<Chunk, CompileError> {
-        let source_chars = {
-            let mut v: Vec<char> = source.chars().collect();
-            v.push('\0');
-            v
-        };
-        let scanner = Scanner::new(source_chars);
+    pub fn compile(source: String) -> Result<Chunk, CompileError> {
+        let scanner = Scanner::new(&source);
 
         let mut compiler = Compiler {
             chunk: Chunk::new(),
@@ -56,7 +51,7 @@ impl<'source> Compiler<'source> {
         let constant = self.chunk.add_constant(value);
         if constant > u8::MAX as usize {
             todo!("Too many constants in one chunk.");
-            return 0;
+            // return 0;
         }
         constant as u8
     }
@@ -103,14 +98,7 @@ fn grouping(compiler: &mut Compiler) {
 }
 
 fn number(compiler: &mut Compiler) {
-    let value: Value = compiler
-        .parser
-        .previous
-        .lexeme
-        .iter()
-        .collect::<String>()
-        .parse()
-        .unwrap();
+    let value: Value = compiler.parser.previous.lexeme.parse().unwrap();
     compiler.emit_constant(value);
 }
 
@@ -138,14 +126,14 @@ fn binary(compiler: &mut Compiler) {
 }
 
 struct Parser<'source> {
-    scanner: &'source Scanner,
+    scanner: &'source Scanner<'source>,
     current: Token<'source>,
     previous: Token<'source>,
     panic_mode: bool,
 }
 
 impl<'source> Parser<'source> {
-    pub fn new(scanner: &'source Scanner) -> Self {
+    pub fn new(scanner: &'source Scanner<'source>) -> Self {
         let token = scanner.scan();
         Self {
             scanner,

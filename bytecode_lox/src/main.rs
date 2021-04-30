@@ -1,5 +1,3 @@
-use chunk::{Chunk, OpCode};
-
 use error::InterpretError;
 use vm::VM;
 
@@ -8,6 +6,7 @@ mod compiler;
 #[cfg(any(feature = "debug_trace_execution", feature = "debug_print_code"))]
 mod debug;
 mod error;
+mod iterator;
 mod scanner;
 mod value;
 mod vm;
@@ -30,7 +29,7 @@ fn handle_interpret_error(error: &InterpretError) {
 impl Lox {
     pub fn run_file(path: &str) {
         let bytes = std::fs::read(path).unwrap();
-        let result = VM::interpret(std::str::from_utf8(&bytes).unwrap());
+        let result = VM::interpret(String::from_utf8(bytes).unwrap());
         result.as_ref().map_err(handle_interpret_error);
         result.unwrap();
     }
@@ -47,7 +46,7 @@ impl Lox {
             if reader.read_line(&mut line).unwrap() == 0 {
                 break;
             }
-            if let Err(error) = VM::interpret(&line) {
+            if let Err(error) = VM::interpret(line) {
                 handle_interpret_error(&error);
             }
         }

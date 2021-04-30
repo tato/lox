@@ -95,7 +95,7 @@ impl<'chunk> VM<'chunk> {
         }
     }
 
-    pub fn interpret(source: &str) -> Result<(), InterpretError> {
+    pub fn interpret(source: String) -> Result<(), InterpretError> {
         let chunk = Compiler::compile(source)?;
         let mut vm = VM::new(&chunk);
         vm.run()
