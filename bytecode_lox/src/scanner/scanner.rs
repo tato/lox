@@ -8,7 +8,7 @@ use crate::iterator::sneakable::Sneakable;
 use super::{Token, TokenKind};
 
 pub struct Scanner<'source> {
-    // characters in the source string are iterated by grapheme clusters.
+    // characters in the source string are iterated by codepoints.
     // the scanner needs to be able to peek the next two characters as it is
     // currently implemented, but 'core::iter::Peekable' only allows
     // peeking the character right next to the cursor. I implemented a
