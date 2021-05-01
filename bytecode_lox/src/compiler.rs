@@ -7,7 +7,7 @@ use crate::{
     chunk::{Chunk, OpCode},
     error::{CompileError, ErrorInfo},
     scanner::{Scanner, Token, TokenKind},
-    value::Value,
+    value::{Obj, Value},
 };
 
 pub struct Compiler<'source> {
@@ -102,7 +102,10 @@ fn literal(compiler: &mut Compiler) {
         TokenKind::False => compiler.emit_byte(OpCode::False.as_u8()),
         TokenKind::True => compiler.emit_byte(OpCode::True.as_u8()),
         TokenKind::Nil => compiler.emit_byte(OpCode::Nil.as_u8()),
-        _ => unreachable!("Literal will always be false, true, or nil: {:?}", compiler.parser.previous),
+        _ => unreachable!(
+            "Literal will always be false, true, or nil: {:?}",
+            compiler.parser.previous
+        ),
     }
 }
 
@@ -114,6 +117,12 @@ fn number(compiler: &mut Compiler) {
         .parse()
         .expect("number expects a valid number token");
     compiler.emit_constant(Value::Number(number));
+}
+
+fn string(compiler: &mut Compiler) {
+    let s = compiler.parser.previous.lexeme;
+    let obj = Obj::string(&s[1..s.len() - 1]);
+    compiler.emit_constant(Value::Obj(obj));
 }
 
 fn unary(compiler: &mut Compiler) {
@@ -247,7 +256,7 @@ lazy_static! {
         rule!(Less, None, Some(binary), Equality);
         rule!(LessEqual, None, Some(binary), Equality);
         rule!(Identifier, None, None, None);
-        rule!(String, None, None, None);
+        rule!(String, Some(string), None, None);
         rule!(Number, Some(number), None, None);
         rule!(And, None, None, None);
         rule!(Class, None, None, None);

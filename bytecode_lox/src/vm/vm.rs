@@ -4,7 +4,7 @@ use crate::{
     chunk::{Chunk, OpCode},
     compiler::Compiler,
     error::{InterpretError, RuntimeError},
-    value::Value,
+    value::{Obj, Value},
 };
 
 #[cfg(feature = "debug_trace_execution")]
@@ -103,17 +103,35 @@ impl<'chunk> VM<'chunk> {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(Value::Bool(a.equals(&b)));
-                },
+                }
                 OpCode::NotEqual => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(Value::Bool(!a.equals(&b)));
-                },
+                }
                 OpCode::Greater => binary_op!(Bool, >),
                 OpCode::GreaterEqual => binary_op!(Bool, >=),
                 OpCode::Less => binary_op!(Bool, <),
                 OpCode::LessEqual => binary_op!(Bool, <=),
-                OpCode::Add => binary_op!(Number, +),
+                OpCode::Add => {
+                    use Value::Number;
+                    if let (Some(b), Some(a)) = (self.peek(0).as_string(), self.peek(1).as_string())
+                    {
+                        self.pop();
+                        self.pop();
+                        // optimization: reduce this allocation by directly copying the existing slices into the
+                        // final allocated string
+                        let s = format!("{}{}", a, b);
+                        self.push(Value::Obj(Obj::string(&s)))
+                    } else if let (Number(b), Number(a)) = (self.peek(0), self.peek(1)) {
+                        self.pop();
+                        self.pop();
+                        self.push(Value::Number(a + b));
+                    } else {
+                        runtime_error!("Operands must be two numbers or two strings.");
+                        todo!("should return err");
+                    }
+                }
                 OpCode::Subtract => binary_op!(Number, -),
                 OpCode::Multiply => binary_op!(Number, *),
                 OpCode::Divide => binary_op!(Number, /),
