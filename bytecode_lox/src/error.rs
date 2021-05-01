@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::scanner::{Token, TokenKind};
+use crate::{
+    scanner::{Token, TokenKind},
+    value::Value,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum InterpretError {
@@ -22,6 +25,8 @@ pub enum CompileError {
 pub enum RuntimeError {
     #[error("Byte '{0}' does not map to any op code.")]
     InvalidOpcode(u8),
+    #[error("Operand for {0} must be number, but was {1}.")]
+    OperandMustBeNumber(String, Value),
 }
 
 #[derive(Debug)]

@@ -97,9 +97,23 @@ fn grouping(compiler: &mut Compiler) {
         .consume(TokenKind::RightParen, "Expect ')' after expression.");
 }
 
+fn literal(compiler: &mut Compiler) {
+    match compiler.parser.previous.kind {
+        TokenKind::False => compiler.emit_byte(OpCode::False.as_u8()),
+        TokenKind::True => compiler.emit_byte(OpCode::True.as_u8()),
+        TokenKind::Nil => compiler.emit_byte(OpCode::Nil.as_u8()),
+        _ => unreachable!("Literal will always be false, true, or nil: {:?}", compiler.parser.previous),
+    }
+}
+
 fn number(compiler: &mut Compiler) {
-    let value: Value = compiler.parser.previous.lexeme.parse().unwrap();
-    compiler.emit_constant(value);
+    let number: f64 = compiler
+        .parser
+        .previous
+        .lexeme
+        .parse()
+        .expect("number expects a valid number token");
+    compiler.emit_constant(Value::Number(number));
 }
 
 fn unary(compiler: &mut Compiler) {
@@ -107,6 +121,7 @@ fn unary(compiler: &mut Compiler) {
     compiler.parse_precedence(Precedence::Unary);
     match operator_kind {
         TokenKind::Minus => compiler.emit_byte(OpCode::Negate.as_u8()),
+        TokenKind::Bang => compiler.emit_byte(OpCode::Not.as_u8()),
         any => unreachable!("Can't parse operator kind '{:?}' as unary.", any),
     }
 }
@@ -117,6 +132,12 @@ fn binary(compiler: &mut Compiler) {
     compiler.parse_precedence(Precedence::from_u8(rule.precedence.as_u8() + 1).unwrap());
 
     match operator_kind {
+        TokenKind::BangEqual => compiler.emit_byte(OpCode::NotEqual.as_u8()),
+        TokenKind::EqualEqual => compiler.emit_byte(OpCode::Equal.as_u8()),
+        TokenKind::Greater => compiler.emit_byte(OpCode::Greater.as_u8()),
+        TokenKind::GreaterEqual => compiler.emit_byte(OpCode::GreaterEqual.as_u8()),
+        TokenKind::Less => compiler.emit_byte(OpCode::Less.as_u8()),
+        TokenKind::LessEqual => compiler.emit_byte(OpCode::LessEqual.as_u8()),
         TokenKind::Plus => compiler.emit_byte(OpCode::Add.as_u8()),
         TokenKind::Minus => compiler.emit_byte(OpCode::Subtract.as_u8()),
         TokenKind::Star => compiler.emit_byte(OpCode::Multiply.as_u8()),
@@ -217,32 +238,32 @@ lazy_static! {
         rule!(Semicolon, None, None, None);
         rule!(Slash, None, Some(binary), Factor);
         rule!(Star, None, Some(binary), Factor);
-        rule!(Bang, None, None, None);
-        rule!(BangEqual, None, None, None);
+        rule!(Bang, Some(unary), None, None);
+        rule!(BangEqual, None, Some(binary), Equality);
         rule!(Equal, None, None, None);
-        rule!(EqualEqual, None, None, None);
-        rule!(Greater, None, None, None);
-        rule!(GreaterEqual, None, None, None);
-        rule!(Less, None, None, None);
-        rule!(LessEqual, None, None, None);
+        rule!(EqualEqual, None, Some(binary), Equality);
+        rule!(Greater, None, Some(binary), Equality);
+        rule!(GreaterEqual, None, Some(binary), Equality);
+        rule!(Less, None, Some(binary), Equality);
+        rule!(LessEqual, None, Some(binary), Equality);
         rule!(Identifier, None, None, None);
         rule!(String, None, None, None);
         rule!(Number, Some(number), None, None);
         rule!(And, None, None, None);
         rule!(Class, None, None, None);
         rule!(Else, None, None, None);
-        rule!(False, None, None, None);
+        rule!(False, Some(literal), None, None);
         rule!(For, None, None, None);
         rule!(Fun, None, None, None);
         rule!(If, None, None, None);
-        rule!(Nil, None, None, None);
+        rule!(Nil, Some(literal), None, None);
         rule!(Or, None, None, None);
         rule!(Print, None, None, None);
         rule!(Return, None, None, None);
         rule!(LeftBrace, None, None, None);
         rule!(Super, None, None, None);
         rule!(This, None, None, None);
-        rule!(True, None, None, None);
+        rule!(True, Some(literal), None, None);
         rule!(Var, None, None, None);
         rule!(While, None, None, None);
         rule!(Error, None, None, None);

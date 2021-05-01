@@ -1,4 +1,4 @@
-use std::usize;
+use std::{usize, vec};
 
 use crate::{
     chunk::{Chunk, OpCode},
@@ -12,8 +12,7 @@ use crate::debug::disassemble_instruction;
 
 const STACK_MAX: usize = 256;
 pub struct VM<'chunk> {
-    stack: Box<[Value; STACK_MAX]>,
-    stack_top: usize,
+    stack: Vec<Value>,
     chunk: &'chunk Chunk,
     ip: usize,
 }
@@ -23,21 +22,24 @@ impl<'chunk> VM<'chunk> {
         VM {
             chunk,
             ip: 0,
-            stack: [Default::default(); STACK_MAX].into(),
-            stack_top: 0,
+            stack: vec![],
         }
     }
 
     fn _reset_stack(&mut self) {
-        self.stack_top = 0;
+        self.stack.clear();
     }
     fn push(&mut self, value: Value) {
-        self.stack[self.stack_top] = value;
-        self.stack_top += 1;
+        if self.stack.len() >= STACK_MAX {
+            panic!("Stack has reached maximum size!");
+        }
+        self.stack.push(value);
     }
     fn pop(&mut self) -> Value {
-        self.stack_top -= 1;
-        self.stack[self.stack_top]
+        self.stack.pop().unwrap_or_default()
+    }
+    fn peek(&mut self, distance: usize) -> Value {
+        self.stack[self.stack.len() - 1 - distance].clone()
     }
 
     fn run(&mut self) -> Result<(), InterpretError> {
@@ -60,14 +62,29 @@ impl<'chunk> VM<'chunk> {
             }
             macro_rules! read_constant {
                 () => {
-                    self.chunk.constants[read_byte!() as usize]
+                    self.chunk.constants[read_byte!() as usize].clone()
                 };
             }
             macro_rules! binary_op {
-                ($op:tt) => {{
-                    let b = self.pop();
-                    let a = self.pop();
-                    self.push(a $op b);
+                ($wrap:ident, $op:tt) => {{
+                    match (self.peek(0), self.peek(1)) {
+                        (Value::Number(a), Value::Number(b)) => {
+                            self.pop();
+                            self.pop();
+                            self.push(Value::$wrap(a $op b));
+                        }
+                        (_a, _b) => {
+                            runtime_error!("Operands must be numbers.");
+                            return Err(RuntimeError::OperandMustBeNumber("idk".to_string(), Value::Nil).into())
+                        }
+                    }
+                }};
+            }
+
+            macro_rules! runtime_error {
+                ($args:tt) => {{
+                    eprint!("[line {}] ", self.chunk.get_line(self.ip));
+                    eprintln!($args);
                 }};
             }
 
@@ -79,13 +96,43 @@ impl<'chunk> VM<'chunk> {
                     let constant = read_constant!();
                     self.push(constant);
                 }
-                OpCode::Add => binary_op!(+),
-                OpCode::Subtract => binary_op!(-),
-                OpCode::Multiply => binary_op!(*),
-                OpCode::Divide => binary_op!(/),
+                OpCode::Nil => self.push(Value::Nil),
+                OpCode::False => self.push(Value::Bool(false)),
+                OpCode::True => self.push(Value::Bool(true)),
+                OpCode::Equal => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value::Bool(a.equals(&b)));
+                },
+                OpCode::NotEqual => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value::Bool(!a.equals(&b)));
+                },
+                OpCode::Greater => binary_op!(Bool, >),
+                OpCode::GreaterEqual => binary_op!(Bool, >=),
+                OpCode::Less => binary_op!(Bool, <),
+                OpCode::LessEqual => binary_op!(Bool, <=),
+                OpCode::Add => binary_op!(Number, +),
+                OpCode::Subtract => binary_op!(Number, -),
+                OpCode::Multiply => binary_op!(Number, *),
+                OpCode::Divide => binary_op!(Number, /),
+                OpCode::Not => {
+                    let val = self.pop().is_falsey();
+                    self.push(Value::Bool(val));
+                }
                 OpCode::Negate => {
-                    let val = -self.pop();
-                    self.push(val);
+                    if let Value::Number(number) = self.peek(0) {
+                        self.pop();
+                        self.push(Value::Number(-number))
+                    } else {
+                        runtime_error!("Operand must be a number.");
+                        return Err(RuntimeError::OperandMustBeNumber(
+                            "unary negation".to_string(),
+                            self.peek(0),
+                        )
+                        .into());
+                    }
                 }
                 OpCode::Return => {
                     println!("{}", self.pop());

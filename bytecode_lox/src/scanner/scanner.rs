@@ -32,6 +32,10 @@ impl<'source> Scanner<'source> {
         }
     }
 
+    /// returns tokens until the stream is finished
+    /// when it is finished it only returns Eof tokens
+    /// if it finds something unexpected, it returns Error tokens
+    /// with an error message in the lexeme field.
     pub fn scan(&'source self) -> Token<'source> {
         self.skip_whitespace();
 
