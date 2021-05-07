@@ -3,25 +3,22 @@ use lox_proc_macros::U8Enum;
 
 #[cfg(feature = "debug_print_code")]
 use crate::debug::disassemble_chunk;
-use crate::{
-    chunk::{Chunk, OpCode},
-    error::{CompileError, ErrorInfo},
-    scanner::{Scanner, Token, TokenKind},
-    value::{Obj, Value},
-};
+use crate::{chunk::{Chunk, OpCode}, error::{CompileError, ErrorInfo}, scanner::{Scanner, Token, TokenKind}, value::{Objects, Value}};
 
-pub struct Compiler<'source> {
+pub struct Compiler<'source, 'objects> {
     chunk: Chunk,
     parser: Parser<'source>,
+    objects: &'objects Objects,
 }
 
-impl<'source> Compiler<'source> {
-    pub fn compile(source: String) -> Result<Chunk, CompileError> {
+impl<'source, 'objects> Compiler<'source, 'objects> {
+    pub fn compile(source: String, objects: &'objects Objects) -> Result<Chunk, CompileError> {
         let scanner = Scanner::new(&source);
 
         let mut compiler = Compiler {
             chunk: Chunk::new(),
             parser: Parser::new(&scanner),
+            objects,
         };
 
         compiler.expression();
@@ -121,7 +118,7 @@ fn number(compiler: &mut Compiler) {
 
 fn string(compiler: &mut Compiler) {
     let s = compiler.parser.previous.lexeme;
-    let obj = Obj::string(&s[1..s.len() - 1]);
+    let obj = compiler.objects.string(&s[1..s.len() - 1]);
     compiler.emit_constant(Value::Obj(obj));
 }
 

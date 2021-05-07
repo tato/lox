@@ -4,7 +4,7 @@ use crate::{
     chunk::{Chunk, OpCode},
     compiler::Compiler,
     error::{InterpretError, RuntimeError},
-    value::{Obj, Value},
+    value::{Obj, Objects, Value},
 };
 
 #[cfg(feature = "debug_trace_execution")]
@@ -15,14 +15,17 @@ pub struct VM<'chunk> {
     stack: Vec<Value>,
     chunk: &'chunk Chunk,
     ip: usize,
+
+    objects: Objects,
 }
 
 impl<'chunk> VM<'chunk> {
-    pub fn new(chunk: &'chunk Chunk) -> Self {
+    pub fn new(chunk: &'chunk Chunk, objects: Objects) -> Self {
         VM {
             chunk,
             ip: 0,
             stack: vec![],
+            objects,
         }
     }
 
@@ -47,8 +50,8 @@ impl<'chunk> VM<'chunk> {
             #[cfg(feature = "debug_trace_execution")]
             {
                 print!("          ");
-                for i in 0..self.stack_top {
-                    print!("[ {} ]", self.stack[i]);
+                for v in &self.stack {
+                    print!("[ {} ]", v);
                 }
                 println!("");
                 disassemble_instruction(self.chunk, self.ip); // TODO! VERY slow!! makes the loop O(n^2)!
@@ -122,7 +125,7 @@ impl<'chunk> VM<'chunk> {
                         // optimization: reduce this allocation by directly copying the existing slices into the
                         // final allocated string
                         let s = format!("{}{}", a, b);
-                        self.push(Value::Obj(Obj::string(&s)))
+                        self.push(Value::Obj(self.objects.string(&s)))
                     } else if let (Number(b), Number(a)) = (self.peek(0), self.peek(1)) {
                         self.pop();
                         self.pop();
@@ -161,8 +164,9 @@ impl<'chunk> VM<'chunk> {
     }
 
     pub fn interpret(source: String) -> Result<(), InterpretError> {
-        let chunk = Compiler::compile(source)?;
-        let mut vm = VM::new(&chunk);
+        let objects = Objects::new();
+        let chunk = Compiler::compile(source, &objects)?;
+        let mut vm = VM::new(&chunk, objects);
         vm.run()
     }
 }
